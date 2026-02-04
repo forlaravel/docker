@@ -121,9 +121,32 @@ sevices:
          ENABLE_SUPERVISOR: true
          ENABLE_HORIZON_WORKER: true
       ports:
-         - "8000:8000" # php
+         - "8000:8000" # http
+         - "8443:8443" # https (self-signed)
          - "5173:5173" # vite
 ```
+
+## SSL / HTTPS (Port 8443)
+
+All image variants serve HTTPS on port **8443** using a self-signed certificate that is generated automatically on first boot. HTTP continues to be served on port **8000**.
+
+This is useful when a reverse proxy (Traefik, Nginx, Caddy, etc.) terminates TLS and forwards traffic to the container. By forwarding to port **8443** instead of 8000, the application sees a genuine HTTPS connection without any code changes, `X-Forwarded-Proto` headers, or `TrustProxies` middleware configuration.
+
+```yml
+ports:
+   - "8000:8000"  # HTTP
+   - "8443:8443"  # HTTPS (self-signed)
+```
+
+The certificate is stored at `/etc/nginx/ssl/selfsigned.{crt,key}`. To use your own certificate, mount it into the container:
+
+```yml
+volumes:
+   - ./my-cert.crt:/etc/nginx/ssl/selfsigned.crt:ro
+   - ./my-cert.key:/etc/nginx/ssl/selfsigned.key:ro
+```
+
+When a certificate already exists at that path, the automatic generation is skipped.
 
 ## Docker HEALTHCHECK
 
@@ -294,7 +317,8 @@ services:
          DEV_ENABLE_XDEBUG: true
          ENABLE_HORIZON_WORKER: true
       ports:
-         - "8000:8000" # php
+         - "8000:8000" # http
+         - "8443:8443" # https (self-signed)
          - "5173:5173" # vite
       restart: unless-stopped
       depends_on:
