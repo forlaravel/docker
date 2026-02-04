@@ -142,6 +142,50 @@ fi
 # Skip Laravel boot
 if [ "$SKIP_LARAVEL_BOOT" = "true" ]; then
    echo "Skipping Laravel boot..."
+
+   # Apply PHP security hardening if configured
+   if [ -n "$PHP_DISABLE_FUNCTIONS" ] || [ -n "$PHP_OPEN_BASEDIR" ]; then
+      echo "Applying PHP security hardening..."
+      HARDENING_INI="/usr/local/etc/php/conf.d/security-hardening.ini"
+      : > "$HARDENING_INI"
+
+      if [ -n "$PHP_DISABLE_FUNCTIONS" ]; then
+         echo "disable_functions = $PHP_DISABLE_FUNCTIONS" >> "$HARDENING_INI"
+         echo "  disable_functions = $PHP_DISABLE_FUNCTIONS"
+      fi
+
+      if [ -n "$PHP_OPEN_BASEDIR" ]; then
+         echo "open_basedir = $PHP_OPEN_BASEDIR" >> "$HARDENING_INI"
+         echo "  open_basedir = $PHP_OPEN_BASEDIR"
+      fi
+
+      if [ "$PHP_RUNTIME_CONFIG" = "fpm" ]; then
+         if pgrep "php-fpm" > /dev/null; then
+            echo "Reloading PHP-FPM to apply hardening..."
+            kill -USR2 "$(pgrep -o php-fpm)" || true
+         fi
+      fi
+
+      echo "============================"
+      echo "=== PHP hardening applied ==="
+      echo "============================"
+   fi
+
+   # Start cron (generic, not Laravel-specific)
+   crond start -f -l 1 &
+   echo "============================"
+   echo "=== Cron service started ==="
+   echo "============================"
+
+   # Run any custom scripts that are mounted to /custom-scripts/after-boot
+   if [ -d "/custom-scripts/after-boot" ]; then
+      echo "Running custom scripts..."
+      for f in /custom-scripts/after-boot/*.sh; do
+         echo "Running $f..."
+         bash "$f" || true
+      done
+   fi
+
    # wait forever
    while true; do
       tail -f /dev/null &
