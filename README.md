@@ -88,6 +88,7 @@ Supervisor always runs, but specific workers are optional.
 | :--- | :--- | :--- | :--- |
 | `ENABLE_QUEUE_WORKER` | `false` | Worker | Starts the standard Laravel Queue Worker. |
 | `ENABLE_HORIZON_WORKER` | `false` | Worker | Starts the Laravel Horizon process. |
+| `SKIP_INSTALL` | `false` | System | Skips Composer install, NPM install, asset build, and Laravel/Filament optimization. Use when dependencies and assets are pre-built into the image. |
 | `SKIP_LARAVEL_BOOT` | `false` | System | **FPM only.** Skips Laravel boot (useful for non-Laravel PHP apps). |
 
 ### 5. Security Hardening
