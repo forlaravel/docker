@@ -231,9 +231,6 @@ mkdir -p storage/framework/sessions
 mkdir -p storage/framework/views
 mkdir -p storage/framework/cache
 
-echo "Creating log paths..."
-mkdir -p storage/logs/supervisor
-
 echo "============================"
 echo "===  Cache paths created ==="
 echo "============================"
