@@ -1,0 +1,10 @@
+.git
+.github
+.env*
+*.pem
+*.key
+*.md
+!README.md
+assets/
+examples/
+LICENSE

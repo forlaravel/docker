@@ -4,52 +4,113 @@
    <meta charset="utf-8">
    <meta name="viewport" content="width=device-width, initial-scale=1">
    <title>System Update</title>
-   <script src="https://cdn.tailwindcss.com"></script>
    <style>
       body { font-family: system-ui, -apple-system, sans-serif; }
+
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      body {
+         background-color: #f9fafb; color: #1f2937;
+         min-height: 100vh; display: flex; flex-direction: column;
+         align-items: center; justify-content: center; padding: 1rem;
+         transition: color 0.2s, background-color 0.2s;
+      }
+      .card {
+         max-width: 28rem; width: 100%; background: #fff;
+         border-radius: 1rem; box-shadow: 0 20px 25px -5px rgba(0,0,0,.1), 0 8px 10px -6px rgba(0,0,0,.1);
+         overflow: hidden; border: 1px solid #f3f4f6;
+         transition: background-color 0.2s, border-color 0.2s;
+      }
+      .img-container {
+         position: relative; height: 16rem; width: 100%; background: #f3f4f6;
+         transition: background-color 0.2s;
+      }
+      .img-container img {
+         position: absolute; inset: 0; width: 100%; height: 100%;
+         object-fit: cover; opacity: 0.9;
+      }
+      .content { padding: 2rem; text-align: center; }
+      .content h1 {
+         font-size: 1.5rem; font-weight: 700; margin-bottom: 0.75rem;
+         color: #111827; transition: color 0.2s;
+      }
+      .content p {
+         color: #6b7280; margin-bottom: 1.5rem; line-height: 1.625;
+         transition: color 0.2s;
+      }
+      @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+      .badge-wrap { animation: pulse 2s cubic-bezier(.4,0,.6,1) infinite; }
+      .badge {
+         display: inline-flex; align-items: center; padding: 0.5rem 1rem;
+         border-radius: 9999px; font-size: 0.75rem; font-weight: 500;
+         background: #f0fdf4; color: #15803d; transition: background-color 0.2s, color 0.2s;
+      }
+      .dot {
+         width: 0.5rem; height: 0.5rem; margin-right: 0.5rem;
+         background: #22c55e; border-radius: 9999px;
+      }
+      .footer {
+         background: #f9fafb; padding: 1rem 2rem;
+         border-top: 1px solid #f3f4f6; display: flex; justify-content: center;
+         transition: background-color 0.2s, border-color 0.2s;
+      }
+      .footer button {
+         font-size: 0.875rem; color: #9ca3af; font-weight: 500;
+         background: none; border: none; cursor: pointer; transition: color 0.2s;
+      }
+      .footer button:hover { color: #4b5563; }
+      .sub { margin-top: 2rem; text-align: center; font-size: 0.75rem; color: #9ca3af; transition: color 0.2s; }
+
+      /* Dark mode */
+      @media (prefers-color-scheme: dark) {
+         body { background-color: #030712; color: #e5e7eb; }
+         .card { background: #111827; border-color: #1f2937; }
+         .img-container { background: #1f2937; }
+         .img-container img { opacity: 0.8; }
+         .content h1 { color: #fff; }
+         .content p { color: #9ca3af; }
+         .badge { background: rgba(20,83,45,.3); color: #86efac; }
+         .dot { background: #4ade80; }
+         .footer { background: rgba(17,24,39,.5); border-color: #1f2937; }
+         .footer button { color: #6b7280; }
+         .footer button:hover { color: #d1d5db; }
+         .sub { color: #4b5563; }
+      }
    </style>
 </head>
-<body class="bg-gray-50 dark:bg-gray-950 text-gray-800 dark:text-gray-200 h-screen flex flex-col items-center justify-center p-4 transition-colors duration-200">
+<body>
 
-<div class="max-w-md w-full bg-white dark:bg-gray-900 rounded-2xl shadow-xl overflow-hidden border border-gray-100 dark:border-gray-800 transition-colors duration-200">
+<div class="card">
 
-   <div class="relative h-64 w-full bg-gray-100 dark:bg-gray-800">
+   <div class="img-container">
       <img
          src="./deploy.webp"
          alt="Update in progress"
-         class="absolute inset-0 w-full h-full object-cover opacity-90 dark:opacity-80"
       >
    </div>
 
-   <div class="p-8 text-center">
-      <h1 class="text-2xl font-bold mb-3 text-gray-900 dark:text-white transition-colors duration-200">
-         System Update in Progress
-      </h1>
+   <div class="content">
+      <h1>System Update in Progress</h1>
 
-      <p class="text-gray-500 dark:text-gray-400 mb-6 leading-relaxed transition-colors duration-200">
+      <p>
          We are currently installing the latest updates and improvements.
          Please hold on, the system will be back online in just a few moments.
       </p>
 
-      <div class="animate-pulse">
-            <span class="inline-flex items-center px-4 py-2 rounded-full text-xs font-medium bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 transition-colors duration-200">
-                <span class="w-2 h-2 mr-2 bg-green-500 dark:bg-green-400 rounded-full"></span>
-                Installing updates...
-            </span>
+      <div class="badge-wrap">
+         <span class="badge">
+            <span class="dot"></span>
+            Installing updates...
+         </span>
       </div>
    </div>
 
-   <div class="bg-gray-50 dark:bg-gray-900/50 px-8 py-4 border-t border-gray-100 dark:border-gray-800 flex justify-center transition-colors duration-200">
-      <button onclick="window.location.reload()" class="text-sm text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 font-medium transition-colors focus:outline-none">
-         Refresh Page
-      </button>
+   <div class="footer">
+      <button onclick="window.location.reload()">Refresh Page</button>
    </div>
 
 </div>
 
-<div class="mt-8 text-center text-xs text-gray-400 dark:text-gray-600 transition-colors duration-200">
-   nginx 502 / 504
-</div>
+<div class="sub">nginx 502 / 504</div>
 
 <script>
    // Auto-reload after 5 seconds

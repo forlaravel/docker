@@ -69,6 +69,57 @@ else
    fi
 fi
 
+# Generate self-signed SSL certificate if not already present (allows user-mounted certs)
+if [ ! -f "/etc/nginx/ssl/selfsigned.crt" ]; then
+   echo "Generating self-signed SSL certificate..."
+   mkdir -p /etc/nginx/ssl
+   openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+      -keyout /etc/nginx/ssl/selfsigned.key \
+      -out /etc/nginx/ssl/selfsigned.crt \
+      -subj "/CN=localhost" 2>/dev/null
+   echo "============================"
+   echo "=== SSL cert generated   ==="
+   echo "============================"
+else
+   echo "SSL certificate already exists, skipping generation."
+fi
+
+# Restrict PHP execution to index.php only (security hardening)
+if [ "$NGINX_RESTRICT_PHP_EXECUTION" = "true" ]; then
+   echo "Restricting PHP execution to index.php only..."
+   if [ "$PHP_RUNTIME_CONFIG" = "fpm" ]; then
+      # For FPM: replace the handler with index.php-only + deny all other PHP files
+      cat > /etc/nginx/php-fpm-handler.conf << 'NGINX_CONF'
+location = /index.php {
+   include fastcgi_params;
+   fastcgi_pass localhost:9000;
+   fastcgi_index index.php;
+   fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+   fastcgi_read_timeout 600s;
+   fastcgi_send_timeout 600s;
+}
+
+location ~ \.php$ {
+   deny all;
+   return 404;
+}
+NGINX_CONF
+   else
+      # For Octane: add deny block for direct PHP file access and use exact match for index.php
+      cat > /etc/nginx/php-restriction.conf << 'NGINX_CONF'
+location ~ \.php$ {
+   deny all;
+   return 404;
+}
+NGINX_CONF
+      # Change prefix match to exact match for /index.php so deny block doesn't intercept it
+      sed -i 's|location /index.php {|location = /index.php {|g' /etc/nginx/http.d/default.conf
+   fi
+   echo "============================"
+   echo "=== PHP exec restricted  ==="
+   echo "============================"
+fi
+
 # Starting earlier to allow hosting non-Laravel apps
 if [ "$PHP_RUNTIME_CONFIG" = "fpm" ]; then
    # Start PHP-FPM if not running
@@ -146,12 +197,12 @@ echo "============================"
 
 # Fix storage permissions
 echo "Fixing storage and cache permissions to allow writing for www-data..."
-chown -R $USER:www-data storage bootstrap/cache
+chown -R "$USER":www-data storage bootstrap/cache
 find storage bootstrap/cache -type d -exec chmod 775 {} \;
 find storage bootstrap/cache -type f -exec chmod 664 {} \;
 
 if [ -f "database/database.sqlite" ]; then
-    chown $USER:www-data database/database.sqlite
+    chown "$USER":www-data database/database.sqlite
     chmod 664 database/database.sqlite
 fi
 
@@ -343,6 +394,35 @@ echo "===   Seeding completed  ==="
 echo "============================"
 
 
+# Apply PHP security hardening if configured
+if [ -n "$PHP_DISABLE_FUNCTIONS" ] || [ -n "$PHP_OPEN_BASEDIR" ]; then
+   echo "Applying PHP security hardening..."
+   HARDENING_INI="/usr/local/etc/php/conf.d/security-hardening.ini"
+   : > "$HARDENING_INI"
+
+   if [ -n "$PHP_DISABLE_FUNCTIONS" ]; then
+      echo "disable_functions = $PHP_DISABLE_FUNCTIONS" >> "$HARDENING_INI"
+      echo "  disable_functions = $PHP_DISABLE_FUNCTIONS"
+   fi
+
+   if [ -n "$PHP_OPEN_BASEDIR" ]; then
+      echo "open_basedir = $PHP_OPEN_BASEDIR" >> "$HARDENING_INI"
+      echo "  open_basedir = $PHP_OPEN_BASEDIR"
+   fi
+
+   # Reload PHP-FPM to pick up new settings (Octane workers haven't started yet)
+   if [ "$PHP_RUNTIME_CONFIG" = "fpm" ]; then
+      if pgrep "php-fpm" > /dev/null; then
+         echo "Reloading PHP-FPM to apply hardening..."
+         kill -USR2 "$(pgrep -o php-fpm)" || true
+      fi
+   fi
+
+   echo "============================"
+   echo "=== PHP hardening applied ==="
+   echo "============================"
+fi
+
 echo "Optimizing Laravel..."
 if [ "$ENV_DEV" = "true" ]; then
    php artisan optimize:clear
@@ -385,8 +465,18 @@ echo "============================"
 # Read laravel .env file
 if [ -f "/app/.env" ]; then
    declare -A LARAVEL_ENV
-   while IFS='=' read -r key value; do
-      if [[ $key != "" && $key != \#* ]]; then
+   while IFS= read -r line || [[ -n "$line" ]]; do
+      # Skip empty lines and comments
+      [[ -z "$line" || "$line" == \#* ]] && continue
+      # Split on first '=' only
+      key="${line%%=*}"
+      value="${line#*=}"
+      # Strip surrounding quotes from value
+      value="${value#\"}"
+      value="${value%\"}"
+      value="${value#\'}"
+      value="${value%\'}"
+      if [[ -n "$key" ]]; then
          LARAVEL_ENV[$key]=$value
       fi
    done < "/app/.env"

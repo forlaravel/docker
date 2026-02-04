@@ -4,6 +4,7 @@ ARG IMAGENAME=php:${INPUT_PHP}-fpm-alpine
 FROM ${IMAGENAME}
 
 ARG TARGETARCH
+ARG INSTALL_CHROMIUM=true
 
 ############################################################
 ###############  GENERAL DEPENDENCIES ######################
@@ -30,17 +31,20 @@ RUN apk update && apk add --no-cache \
     supervisor \
     ca-certificates \
     tzdata \
-    jq
+    jq \
+    openssl
 
-# Install puppeteer PDF tools dependencies
-RUN apk update && apk add --no-cache \
-      chromium \
-      nss \
-      freetype \
-      harfbuzz \
-      ttf-freefont \
-      libc6-compat \
-      gcompat
+# Install puppeteer PDF tools dependencies (optional, controlled by INSTALL_CHROMIUM build arg)
+RUN if [ "$INSTALL_CHROMIUM" = "true" ]; then \
+      apk update && apk add --no-cache \
+         chromium \
+         nss \
+         freetype \
+         harfbuzz \
+         ttf-freefont \
+         libc6-compat \
+         gcompat; \
+    fi
 
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
@@ -58,9 +62,12 @@ RUN chmod +x /usr/local/bin/install-php-extensions && \
 # Configure Nginx
 COPY ./src/shared/nginx/nginx.base.conf /etc/nginx/nginx.conf
 COPY ./src/shared/nginx/nginx.fpm.conf /etc/nginx/http.d/default.conf
+COPY ./src/shared/nginx/php-fpm-handler.conf /etc/nginx/php-fpm-handler.conf
 COPY ./src/shared/nginx/maintenance /etc/nginx/maintenance
-RUN mkdir -p /var/run/nginx /var/lib/nginx/tmp && \
-    chown -R laravel:laravel /var/lib/nginx /var/run/nginx /var/log/nginx
+RUN mkdir -p /var/run/nginx /var/lib/nginx/tmp /etc/nginx/ssl && \
+    touch /etc/nginx/php-restriction.conf && \
+    chown -R laravel:laravel /var/lib/nginx /var/run/nginx /var/log/nginx /etc/nginx/ssl \
+        /etc/nginx/php-fpm-handler.conf /etc/nginx/php-restriction.conf
 
 # Configure Supervisor. Add your Supervisor configuration files here.
 COPY ./src/shared/supervisor/ /tmp/supervisor/
@@ -97,14 +104,17 @@ RUN chown -R laravel:laravel /etc/supervisor/conf.d \
 # Set the user to run the container
 USER laravel
 
-# Expose the port Nginx is reachable on
-EXPOSE 8000
+# Expose the ports Nginx is reachable on
+EXPOSE 8000 8443
 
 # Set Bash as the default shell
 SHELL ["/bin/bash", "-c"]
 
 ENV PHP_RUNTIME_CONFIG=fpm
 ENV PHP_IDE_CONFIG="serverName=laravel"
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
+    CMD curl -sf http://localhost:8000/basic_status || exit 1
 
 # Define the command to run on container start
 ENTRYPOINT ["/scripts/entrypoint.sh"]

@@ -1,10 +1,12 @@
 <p align="center">
-  <a href="https://github.com/jonaaix/laravel-aio-docker">
+  <a href="https://github.com/forlaravel/docker">
     <img src="./assets/logo.png" alt="Laravel AIO Docker Logo" width="150">
   </a>
 </p>
 
 <h1 align="center">Laravel AIO Docker Image</h1>
+
+> **Fork of [jonaaix/laravel-aio-docker](https://github.com/forlaravel/docker)** with some security hardening: Docker HEALTHCHECK, restricted `/basic_status`, Nginx security headers, access logging, PHP session hardening, optional Chromium, supervisor log rotation, inline maintenance page CSS, and new env vars for PHP execution restriction and function/basedir hardening.
 
 <p align="center">
 This all-in-one Docker runtime image is designed specifically for Laravel applications, providing a complete, pre-configured
@@ -13,8 +15,8 @@ ensuring your Laravel application is ready to run out of the box with minimal ef
 </p>
 
 <p align="center">
-   <a href="https://github.com/jonaaix/laravel-aio-docker/pkgs/container/laravel-aio"><img src="https://img.shields.io/badge/variants-fpm | roadrunner | frankenphp | openswoole-blue?style=flat-square" alt="FPM Variant"></a>
-   <a href="https://github.com/jonaaix/laravel-aio-docker/actions/workflows/build-and-push.yml"><img src="https://img.shields.io/github/actions/workflow/status/jonaaix/laravel-aio-docker/build-and-push.yml?style=flat-square&label=build" alt="Build Status"></a>
+   <a href="https://github.com/forlaravel/docker/pkgs/container/laravel-aio"><img src="https://img.shields.io/badge/variants-fpm | roadrunner | frankenphp | openswoole-blue?style=flat-square" alt="FPM Variant"></a>
+   <a href="https://github.com/forlaravel/docker/actions/workflows/build-and-push.yml"><img src="https://img.shields.io/github/actions/workflow/status/forlaravel/docker/build-and-push.yml?style=flat-square&label=build" alt="Build Status"></a>
    <a href="./LICENSE"><img src="https://img.shields.io/packagist/l/aaix/laravel-easy-backups.svg?style=flat-square" alt="License"></a>
 </p>
 
@@ -22,17 +24,17 @@ ensuring your Laravel application is ready to run out of the box with minimal ef
 
 ##### Laravel 12 & 13
 ###### PHP 8.5
-- `ghcr.io/jonaaix/laravel-aio:1.3-php8.5-fpm`
-- `ghcr.io/jonaaix/laravel-aio:1.3-php8.5-roadrunner`
-- `ghcr.io/jonaaix/laravel-aio:1.3-php8.5-frankenphp`
+- `ghcr.io/forlaravel/laravel-aio:1.3-php8.5-fpm`
+- `ghcr.io/forlaravel/laravel-aio:1.3-php8.5-roadrunner`
+- `ghcr.io/forlaravel/laravel-aio:1.3-php8.5-frankenphp`
 - _openswoole is not compatible with PHP 8.5 yet_
 
 ##### Laravel 10 & 11
 ###### PHP 8.4
-- `ghcr.io/jonaaix/laravel-aio:1.3-php8.4-fpm`
-- `ghcr.io/jonaaix/laravel-aio:1.3-php8.4-roadrunner`
-- `ghcr.io/jonaaix/laravel-aio:1.3-php8.4-frankenphp`
-- `ghcr.io/jonaaix/laravel-aio:1.3-php8.4-openswoole`
+- `ghcr.io/forlaravel/laravel-aio:1.3-php8.4-fpm`
+- `ghcr.io/forlaravel/laravel-aio:1.3-php8.4-roadrunner`
+- `ghcr.io/forlaravel/laravel-aio:1.3-php8.4-frankenphp`
+- `ghcr.io/forlaravel/laravel-aio:1.3-php8.4-openswoole`
 
 #### Note:
 When switching to a Laravel Octane based image (roadrunner/frankenphp/swoole) for the first time,
@@ -58,31 +60,42 @@ The system runs in **Production Mode** by default.
 ### 2. Development Features
 > **Requirement:** Active only when `ENV_DEV=true`.
 
-| Variable | Description |
-| :--- | :--- |
-| `DEV_FORCE_NPM_INSTALL` | Forces `npm install` on every container start. |
-| `DEV_NPM_RUN_DEV` | Runs `npm run dev` (Vite) on container start. |
-| `DEV_ENABLE_XDEBUG` | Enables Xdebug extension. |
+| Variable | Default | Description |
+| :--- | :--- | :--- |
+| `DEV_FORCE_NPM_INSTALL` | `false` | Forces `npm install` on every container start. |
+| `DEV_NPM_RUN_DEV` | `false` | Runs `npm run dev` (Vite) on container start. |
+| `DEV_ENABLE_XDEBUG` | `false` | Enables Xdebug extension. |
 
 ### 3. Production Automation
 > **Requirement:** Active only when `ENV_DEV=false` (default).
 
-| Variable | Description |
-| :--- | :--- |
-| `PROD_RUN_ARTISAN_MIGRATE` | Runs `php artisan migrate --force` on boot. |
-| `PROD_RUN_ARTISAN_DBSEED` | Runs `php artisan db:seed --force` on boot. |
-| `PROD_SKIP_OPTIMIZE` | Skips standard Laravel caching/optimization commands. |
+| Variable | Default | Description |
+| :--- | :--- | :--- |
+| `PROD_RUN_ARTISAN_MIGRATE` | `false` | Runs `php artisan migrate --force` on boot. |
+| `PROD_RUN_ARTISAN_DBSEED` | `false` | Runs `php artisan db:seed --force` on boot. |
+| `PROD_SKIP_OPTIMIZE` | `false` | Skips standard Laravel caching/optimization commands. |
 
 ### 4. Background Services & System
 Supervisor always runs, but specific workers are optional.
 
-| Variable | Context | Description |
-| :--- | :--- | :--- |
-| `ENABLE_QUEUE_WORKER` | Worker | Starts the standard Laravel Queue Worker. |
-| `ENABLE_HORIZON_WORKER` | Worker | Starts the Laravel Horizon process. |
-| `SKIP_LARAVEL_BOOT` | System | **FPM only.** Skips Laravel boot (useful for non-Laravel PHP apps). |
+| Variable | Default | Context | Description |
+| :--- | :--- | :--- | :--- |
+| `ENABLE_QUEUE_WORKER` | `false` | Worker | Starts the standard Laravel Queue Worker. |
+| `ENABLE_HORIZON_WORKER` | `false` | Worker | Starts the Laravel Horizon process. |
+| `SKIP_LARAVEL_BOOT` | `false` | System | **FPM only.** Skips Laravel boot (useful for non-Laravel PHP apps). |
 
-### 5. Maintenance Mode
+### 5. Security Hardening
+Optional settings for tightening the runtime. All disabled by default.
+
+| Variable | Default | Description |
+| :--- | :--- | :--- |
+| `NGINX_RESTRICT_PHP_EXECUTION` | `false` | Only allow `index.php` to be executed by PHP. All other `.php` requests are denied with 404. Works for both FPM and Octane variants. |
+| `PHP_DISABLE_FUNCTIONS` | _(unset)_ | Comma-separated list of PHP functions to disable (e.g. `exec,shell_exec,system,passthru`). Applied after `composer install` so Composer still works. For FPM, PHP-FPM is reloaded automatically. |
+| `PHP_OPEN_BASEDIR` | _(unset)_ | Restrict PHP filesystem access (e.g. `/app:/tmp`). Applied after `composer install`. |
+
+> **Note:** `PHP_DISABLE_FUNCTIONS` and `PHP_OPEN_BASEDIR` are written to a PHP ini file after Composer runs but before Supervisor starts workers. This means Composer/Artisan boot commands are unaffected, while the running application is hardened.
+
+### 6. Maintenance Mode
 Control Laravel's maintenance mode during container boot (e.g., for deployments).
 
 | Variable | Default | Description |
@@ -99,7 +112,7 @@ A typical dev setup might look like this:
 ```yml
 sevices:
    php:
-      image: ghcr.io/jonaaix/laravel-aio:1.3-php8.5-fpm
+      image: ghcr.io/forlaravel/laravel-aio:1.3-php8.5-fpm
       volumes:
          - ./:/app:rw
       environment:
@@ -111,6 +124,19 @@ sevices:
          - "8000:8000" # php
          - "5173:5173" # vite
 ```
+
+## Docker HEALTHCHECK
+
+All image variants include a `HEALTHCHECK` instruction that polls `http://localhost:8000/basic_status` every 30s (start-period: 120s to allow the full boot sequence). The `/basic_status` endpoint is restricted to localhost only, so it is not reachable from outside the container.
+
+Check health status:
+```bash
+docker inspect --format='{{.State.Health.Status}}' <container>
+```
+
+## Nginx Access Logging
+
+Nginx access logs are enabled and sent to stdout in `combined` format, so they appear in `docker logs`. Per-request logs for `/favicon.ico` and `/robots.txt` are suppressed to reduce noise.
 
 ## Project Directory Ownership
 - The container runs as uid 1000, to match the host user on most systems.
@@ -258,7 +284,7 @@ volumes:
 services:
    php:
       container_name: ${APP_NAME}_php
-      image: ghcr.io/jonaaix/laravel-aio:1.3-php8.5-fpm
+      image: ghcr.io/forlaravel/laravel-aio:1.3-php8.5-fpm
       stop_grace_period: 60s
       volumes:
          - ./:/app
@@ -329,7 +355,11 @@ redis:
 
 ### Adding Chromium PDF
 
-Chromium is included in the `1.3` images, so you can use it to generate PDFs in your Laravel application.
+Chromium is included by default. To build without it (saves ~200MB), use the `INSTALL_CHROMIUM` build arg:
+```bash
+docker buildx build --build-arg INPUT_PHP=8.4 --build-arg INSTALL_CHROMIUM=false \
+   --file ./src/php-fpm/Dockerfile --load .
+```
 
 Install the package `spatie/laravel-pdf` and configure it to use the `chrome` driver.
 
