@@ -27,6 +27,10 @@ on:
                 description: 'Build OpenSwoole'
                 type: boolean
                 default: true
+            build_chromium:
+                description: 'Also build -chromium variants'
+                type: boolean
+                default: true
 
 permissions:
     packages: write
@@ -39,6 +43,7 @@ jobs:
         outputs:
             php_version: ${{ steps.set-matrix.outputs.php_version }}
             variants: ${{ steps.set-matrix.outputs.variants }}
+            chromium: ${{ steps.set-matrix.outputs.chromium }}
         steps:
             -   name: Set matrix values
                 id: set-matrix
@@ -98,14 +103,22 @@ jobs:
                     JSON_OUTPUT=$(printf '%s\n' "${variants[@]}" | jq -R . | jq -s -c .)
                     echo "variants=${JSON_OUTPUT}" >> $GITHUB_OUTPUT
 
+                    # Build chromium matrix: always include false, optionally include true
+                    if [[ "${{ inputs.build_chromium }}" == "true" ]]; then
+                        echo 'chromium=[false,true]' >> $GITHUB_OUTPUT
+                    else
+                        echo 'chromium=[false]' >> $GITHUB_OUTPUT
+                    fi
+
     build-and-push:
-        name: Build Multi-Arch Images
+        name: Build ${{ matrix.variant }}${{ matrix.chromium == true && '-chromium' || '' }}
         runs-on: ubuntu-latest
         needs: setup
         strategy:
             fail-fast: false
             matrix:
                 variant: ${{ fromJson(needs.setup.outputs.variants) }}
+                chromium: ${{ fromJson(needs.setup.outputs.chromium) }}
         steps:
             -   name: Checkout code
                 uses: actions/checkout@v4
@@ -131,8 +144,8 @@ jobs:
                 with:
                     images: ghcr.io/forlaravel/docker
                     tags: |
-                        type=raw,value=${{ inputs.version_tag }}-php${{ needs.setup.outputs.php_version }}-${{ matrix.variant }}
-                        type=raw,value=latest-php${{ needs.setup.outputs.php_version }}-${{ matrix.variant }}
+                        type=raw,value=${{ inputs.version_tag }}-php${{ needs.setup.outputs.php_version }}-${{ matrix.variant }}${{ matrix.chromium == true && '-chromium' || '' }}
+                        type=raw,value=latest-php${{ needs.setup.outputs.php_version }}-${{ matrix.variant }}${{ matrix.chromium == true && '-chromium' || '' }}
 
             -   name: Build and push multi-arch image
                 uses: docker/build-push-action@v5
@@ -142,11 +155,12 @@ jobs:
                     platforms: linux/amd64,linux/arm64
                     build-args: |
                         INPUT_PHP=${{ needs.setup.outputs.php_version }}
+                        INSTALL_CHROMIUM=${{ matrix.chromium }}
                     tags: ${{ steps.meta.outputs.tags }}
                     labels: ${{ steps.meta.outputs.labels }}
                     push: true
                     provenance: false
                     sbom: false
-                    # Add explicit scope to isolate caches per variant
-                    cache-from: type=gha,scope=php-${{ matrix.variant }}
-                    cache-to: type=gha,mode=max,scope=php-${{ matrix.variant }}
+                    # Add explicit scope to isolate caches per variant and chromium flag
+                    cache-from: type=gha,scope=php-${{ matrix.variant }}${{ matrix.chromium == true && '-chromium' || '' }}
+                    cache-to: type=gha,mode=max,scope=php-${{ matrix.variant }}${{ matrix.chromium == true && '-chromium' || '' }}

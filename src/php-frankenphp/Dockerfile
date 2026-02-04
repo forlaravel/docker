@@ -4,7 +4,7 @@ ARG IMAGENAME=dunglas/frankenphp:php${INPUT_PHP}-alpine
 FROM $IMAGENAME
 
 ARG TARGETARCH
-ARG INSTALL_CHROMIUM=true
+ARG INSTALL_CHROMIUM=false
 
 ############################################################
 ###############  GENERAL DEPENDENCIES ######################

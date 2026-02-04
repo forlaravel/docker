@@ -4,7 +4,7 @@ ARG IMAGENAME=php:${INPUT_PHP}-cli-alpine
 FROM $IMAGENAME
 
 ARG TARGETARCH
-ARG INSTALL_CHROMIUM=true
+ARG INSTALL_CHROMIUM=false
 
 ############################################################
 ###############  GENERAL DEPENDENCIES ######################

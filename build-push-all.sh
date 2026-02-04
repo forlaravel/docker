@@ -10,11 +10,19 @@ imageTypes=("fpm" "frankenphp" "roadrunner" "openswoole")
 
 for phpVersion in "${phpVersions[@]}"; do
   for imageType in "${imageTypes[@]}"; do
+     # Build without chromium (default)
      echo
      echo "--------------------------------------------------"
-     echo "️⚽️ Building and pushing ghcr.io/forlaravel/docker:1.3-php${phpVersion}-${imageType}..."
+     echo "️⚽️ Building ghcr.io/forlaravel/docker:1.3-php${phpVersion}-${imageType}..."
      echo "--------------------------------------------------"
     ./build-image.sh "$phpVersion" "$imageType"
+
+     # Build with chromium
+     echo
+     echo "--------------------------------------------------"
+     echo "️⚽️ Building ghcr.io/forlaravel/docker:1.3-php${phpVersion}-${imageType}-chromium..."
+     echo "--------------------------------------------------"
+    ./build-image.sh "$phpVersion" "$imageType" --chromium
   done
 
   # After building all image types for one PHP version, push all tags

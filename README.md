@@ -36,6 +36,12 @@ ensuring your Laravel application is ready to run out of the box with minimal ef
 - `ghcr.io/forlaravel/docker:1.3-php8.4-frankenphp`
 - `ghcr.io/forlaravel/docker:1.3-php8.4-openswoole`
 
+##### With Chromium (add `-chromium` suffix)
+For PDF generation via Puppeteer/Browsershot, use the `-chromium` variants:
+- `ghcr.io/forlaravel/docker:1.3-php8.5-fpm-chromium`
+- `ghcr.io/forlaravel/docker:1.3-php8.4-fpm-chromium`
+- etc.
+
 #### Note:
 When switching to a Laravel Octane based image (roadrunner/frankenphp/swoole) for the first time,
 the entrypoint will automatically set up all requirements if not already available. 
@@ -379,9 +385,20 @@ redis:
 
 ### Adding Chromium PDF
 
-Chromium is included by default. To build without it (saves ~200MB), use the `INSTALL_CHROMIUM` build arg:
+Chromium is **not** included in the default images to keep them smaller (~200MB savings). To use Chromium for PDF generation, use the `-chromium` image variant:
+
+```yaml
+image: ghcr.io/forlaravel/docker:1.3-php8.4-fpm-chromium
+```
+
+When building locally, pass the `--chromium` flag:
 ```bash
-docker buildx build --build-arg INPUT_PHP=8.4 --build-arg INSTALL_CHROMIUM=false \
+./build-image.sh 8.4 fpm --chromium
+```
+
+Or use the `INSTALL_CHROMIUM` build arg directly:
+```bash
+docker buildx build --build-arg INPUT_PHP=8.4 --build-arg INSTALL_CHROMIUM=true \
    --file ./src/php-fpm/Dockerfile --load .
 ```
 

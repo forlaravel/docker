@@ -21,13 +21,16 @@ Current version: **1.3** | Supported PHP: **8.3, 8.4, 8.5** | Supported Laravel:
 # Cross-platform build
 ./build-image.sh 8.4 fpm --platform=linux/arm64
 
-# Build and push all variants for PHP 8.4 and 8.3
+# Build with Chromium (appends -chromium to tags)
+./build-image.sh 8.4 fpm --chromium
+
+# Build and push all variants (with and without chromium) for PHP 8.4 and 8.3
 ./build-push-all.sh
 ```
 
 Image types: `fpm`, `frankenphp`, `roadrunner`, `openswoole`
 
-Image tag format: `ghcr.io/forlaravel/docker:{version}-php{X.Y}-{type}`
+Image tag format: `ghcr.io/forlaravel/docker:{version}-php{X.Y}-{type}` (without Chromium) or `ghcr.io/forlaravel/docker:{version}-php{X.Y}-{type}-chromium` (with Chromium)
 
 CI/CD is via GitHub Actions (manual `workflow_dispatch`) in `.github/workflows/build-and-push.yml`. It builds multi-arch images (amd64 + arm64) in parallel per variant.
 

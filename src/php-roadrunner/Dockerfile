@@ -5,7 +5,7 @@ FROM ghcr.io/roadrunner-server/roadrunner:latest AS roadrunner
 FROM $IMAGENAME
 
 ARG TARGETARCH
-ARG INSTALL_CHROMIUM=true
+ARG INSTALL_CHROMIUM=false
 
 COPY --from=roadrunner /usr/bin/rr /usr/local/bin/rr
 
