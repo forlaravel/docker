@@ -24,17 +24,17 @@ ensuring your Laravel application is ready to run out of the box with minimal ef
 
 ##### Laravel 12 & 13
 ###### PHP 8.5
-- `ghcr.io/forlaravel/laravel-aio:1.3-php8.5-fpm`
-- `ghcr.io/forlaravel/laravel-aio:1.3-php8.5-roadrunner`
-- `ghcr.io/forlaravel/laravel-aio:1.3-php8.5-frankenphp`
+- `ghcr.io/forlaravel/docker:1.3-php8.5-fpm`
+- `ghcr.io/forlaravel/docker:1.3-php8.5-roadrunner`
+- `ghcr.io/forlaravel/docker:1.3-php8.5-frankenphp`
 - _openswoole is not compatible with PHP 8.5 yet_
 
 ##### Laravel 10 & 11
 ###### PHP 8.4
-- `ghcr.io/forlaravel/laravel-aio:1.3-php8.4-fpm`
-- `ghcr.io/forlaravel/laravel-aio:1.3-php8.4-roadrunner`
-- `ghcr.io/forlaravel/laravel-aio:1.3-php8.4-frankenphp`
-- `ghcr.io/forlaravel/laravel-aio:1.3-php8.4-openswoole`
+- `ghcr.io/forlaravel/docker:1.3-php8.4-fpm`
+- `ghcr.io/forlaravel/docker:1.3-php8.4-roadrunner`
+- `ghcr.io/forlaravel/docker:1.3-php8.4-frankenphp`
+- `ghcr.io/forlaravel/docker:1.3-php8.4-openswoole`
 
 #### Note:
 When switching to a Laravel Octane based image (roadrunner/frankenphp/swoole) for the first time,
@@ -112,7 +112,7 @@ A typical dev setup might look like this:
 ```yml
 sevices:
    php:
-      image: ghcr.io/forlaravel/laravel-aio:1.3-php8.5-fpm
+      image: ghcr.io/forlaravel/docker:1.3-php8.5-fpm
       volumes:
          - ./:/app:rw
       environment:
@@ -284,7 +284,7 @@ volumes:
 services:
    php:
       container_name: ${APP_NAME}_php
-      image: ghcr.io/forlaravel/laravel-aio:1.3-php8.5-fpm
+      image: ghcr.io/forlaravel/docker:1.3-php8.5-fpm
       stop_grace_period: 60s
       volumes:
          - ./:/app

@@ -6,7 +6,7 @@
 services:
     php:
         container_name: ${APP_NAME}_php
-        image: ghcr.io/jonaaix/laravel-aio:1.3-php8.4-fpm
+        image: ghcr.io/forlaravel/docker:1.3-php8.4-fpm
         stop_grace_period: 60s
         volumes:
             - ./:/app:cached

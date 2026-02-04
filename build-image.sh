@@ -42,10 +42,12 @@ for arg in "$@"; do
   esac
 done
 
-imageTag="ghcr.io/forlaravel/laravel-aio:${imageVersion}-php${phpVersion}-${imageType}"
+imageTag="ghcr.io/forlaravel/docker:${imageVersion}-php${phpVersion}-${imageType}"
+latestTag="ghcr.io/forlaravel/docker:latest-php${phpVersion}-${imageType}"
 dockerfilePath="./src/php-${imageType}/Dockerfile"
 
 echo "⚪️ Building image: ${imageTag}"
+echo "⚪️ Also tagging:   ${latestTag}"
 echo "Using Dockerfile: ${dockerfilePath}"
 
 # Detect current architecture if platform not specified
@@ -82,10 +84,12 @@ docker buildx build \
   --platform "${platform}" \
   --build-arg INPUT_PHP="${phpVersion}" \
   --tag "${imageTag}" \
+  --tag "${latestTag}" \
   --file "${dockerfilePath}" \
   ${outputFlag} .
 
 echo
 echo "✅ Image built successfully: ${imageTag}"
+echo "✅ Also tagged: ${latestTag}"
 [ "$push" == "--push" ] && echo "🌍 Image pushed to registry"
 echo

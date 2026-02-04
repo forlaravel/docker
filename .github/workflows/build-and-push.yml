@@ -129,9 +129,10 @@ jobs:
                 id: meta
                 uses: docker/metadata-action@v5
                 with:
-                    images: ghcr.io/forlaravel/laravel-aio
+                    images: ghcr.io/forlaravel/docker
                     tags: |
                         type=raw,value=${{ inputs.version_tag }}-php${{ needs.setup.outputs.php_version }}-${{ matrix.variant }}
+                        type=raw,value=latest-php${{ needs.setup.outputs.php_version }}-${{ matrix.variant }}
 
             -   name: Build and push multi-arch image
                 uses: docker/build-push-action@v5

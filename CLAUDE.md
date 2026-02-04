@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Laravel AIO (All-In-One) Docker image for running Laravel applications. Provides a complete runtime with PHP, Nginx, Supervisor, and optional workers in a single container. Published to `ghcr.io/forlaravel/laravel-aio`.
+Laravel AIO (All-In-One) Docker image for running Laravel applications. Provides a complete runtime with PHP, Nginx, Supervisor, and optional workers in a single container. Published to `ghcr.io/forlaravel/docker`.
 
 Current version: **1.3** | Supported PHP: **8.3, 8.4, 8.5** | Supported Laravel: **10, 11, 12, 13**
 
@@ -27,7 +27,7 @@ Current version: **1.3** | Supported PHP: **8.3, 8.4, 8.5** | Supported Laravel:
 
 Image types: `fpm`, `frankenphp`, `roadrunner`, `openswoole`
 
-Image tag format: `ghcr.io/forlaravel/laravel-aio:{version}-php{X.Y}-{type}`
+Image tag format: `ghcr.io/forlaravel/docker:{version}-php{X.Y}-{type}`
 
 CI/CD is via GitHub Actions (manual `workflow_dispatch`) in `.github/workflows/build-and-push.yml`. It builds multi-arch images (amd64 + arm64) in parallel per variant.
 
