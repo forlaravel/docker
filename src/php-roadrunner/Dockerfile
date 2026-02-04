@@ -52,11 +52,10 @@ RUN if [ "$INSTALL_CHROMIUM" = "true" ]; then \
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
 # PHP Extension installer
-ADD https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions /usr/local/bin/
+COPY --from=mlocati/php-extension-installer /usr/bin/install-php-extensions /usr/local/bin/
 
 # Install PHP Extensions (grouped in one layer for optimization)
-RUN chmod +x /usr/local/bin/install-php-extensions && \
-    install-php-extensions @composer \
+RUN install-php-extensions @composer \
     gd bcmath bz2 calendar iconv intl mbstring \
     mysqli pdo_mysql pdo_pgsql soap zip gmp ldap \
     exif memcached redis imap pcntl openssl tokenizer \
