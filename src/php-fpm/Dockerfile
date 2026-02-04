@@ -83,6 +83,9 @@ RUN chown 1000:1000 /etc/supercronic.txt
 # Copy custom php.ini configuration
 COPY ./src/shared/php.ini /usr/local/etc/php/
 
+# Disable PHP-FPM access log (Nginx already handles access logging)
+COPY ./src/shared/php-fpm-overrides.conf /usr/local/etc/php-fpm.d/zz-overrides.conf
+
 # Yes, different path for xdebug config, disabled by default
 COPY ./src/shared/xdebug.ini /usr/local/etc/php/conf.d/xdebug.ini.disabled
 # Remove xdebug ini file from extension installer
