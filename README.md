@@ -4,7 +4,7 @@
   </a>
 </p>
 
-<h1 align="center">Laravel AIO Docker Image</h1>
+<h1 align="center">Laravel Docker Image</h1>
 
 > **Fork of [jonaaix/laravel-aio-docker](https://github.com/forlaravel/docker)** with some security hardening: Docker HEALTHCHECK, restricted `/basic_status`, Nginx security headers, access logging, PHP session hardening, optional Chromium, supervisor log rotation, inline maintenance page CSS, and new env vars for PHP execution restriction and function/basedir hardening.
 
