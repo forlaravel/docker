@@ -1,5 +1,37 @@
 # Changelog
 
+## Version 1.3.3 (2026-02-04)
+
+### Registry & Branding
+- Rebrand from `jonaaix/laravel-aio-docker` to `ghcr.io/forlaravel/docker`
+- Build scripts and CI now produce both versioned tags (e.g. `1.3-php8.4-fpm`) and `latest` tags (e.g. `latest-php8.4-fpm`)
+
+### Security Hardening
+- Add `HEALTHCHECK` on all image variants
+- Add Nginx security headers: `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `X-XSS-Protection`, `Permissions-Policy`
+- PHP session cookie hardening
+- Add `NGINX_RESTRICT_PHP_EXECUTION` env var to only allow `index.php` execution
+- Add runtime `PHP_DISABLE_FUNCTIONS` and `PHP_OPEN_BASEDIR` hardening env vars
+- Restrict `/basic_status` endpoint to localhost only
+
+### New Features
+- Self-signed SSL certificate on port 8443 for reverse-proxy and local HTTPS use cases
+- Chromium is now optional; default images ship without it (~200MB savings)
+- New `-chromium` tagged variants (e.g. `1.3-php8.4-fpm-chromium`) for Puppeteer/Browsershot PDF generation
+- Build scripts and CI produce both standard and chromium variants
+
+### Logging Improvements
+- Add `set_real_ip_from` directives to FPM Nginx config so logs show real client IPs instead of Docker internal IPs
+- Silence `/basic_status` health check access logging on all variants
+- Disable PHP-FPM access log to remove duplicate log lines (Nginx already logs with more detail)
+
+### Other
+- Inline maintenance page CSS (remove Tailwind CDN dependency)
+- Improve `.env` parsing in entrypoint
+- Add CI version tag validation
+- Add `.dockerignore` and `CLAUDE.md`
+- Add SSL/HTTPS documentation to README
+
 ## Version 1.3.2 (PHP 8.4 and PHP 8.5)
 - Moved image registry to GitHub (ghcr.io)
 - Automatically generate `APP_KEY` on first run if not set to prevent boot errors
