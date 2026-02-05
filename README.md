@@ -15,7 +15,7 @@ ensuring your Laravel application is ready to run out of the box with minimal ef
 </p>
 
 <p align="center">
-   <a href="https://github.com/forlaravel/docker/pkgs/container/docker"><img src="https://img.shields.io/badge/variants-php8.4 | php8.5-blue?style=flat-square" alt="FPM Variant"></a>
+   <a href="https://github.com/forlaravel/docker/pkgs/container/docker"><img src="https://img.shields.io/badge/variants-fpm | roadrunner | frankenphp | openswoole-blue?style=flat-square" alt="Variants"></a>
    <a href="https://github.com/forlaravel/docker/actions/workflows/build-and-push.yml"><img src="https://img.shields.io/github/actions/workflow/status/forlaravel/docker/build-and-push.yml?style=flat-square&label=build" alt="Build Status"></a>
    <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-white?style=flat-square" alt="License"></a>
 </p>
