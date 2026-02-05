@@ -14,14 +14,12 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             -   name: Prune untagged images
-                uses: snok/container-retention-policy@v3.0.0
+                uses: dataaxiom/ghcr-cleanup-action@v1
                 with:
-                    image-names: laravel-aio
-                    # FIX: Must be literal "user" for personal accounts, not the username.
-                    account: user
+                    package: docker
                     token: ${{ secrets.GITHUB_TOKEN }}
-                    # Focus on untagged images (orphans)
-                    tag-selection: untagged
-                    # Safety buffer: 2 weeks to avoid breaking active multi-arch references
-                    cut-off: 2w
-                    keep-n-most-recent: 3
+                    # Delete untagged images older than 14 days
+                    delete-untagged: true
+                    older-than: 14 days
+                    # Keep at least 3 untagged images as safety buffer
+                    keep-n-untagged: 3
