@@ -11,29 +11,49 @@ permissions:
     contents: read
 
 jobs:
-    rebuild:
-        name: Rebuild PHP ${{ matrix.php_version }} - ${{ matrix.variant }}${{ matrix.chromium == true && '-chromium' || '' }}
+    setup:
+        name: Setup Build Matrix
         runs-on: ubuntu-latest
+        outputs:
+            matrix: ${{ steps.set-matrix.outputs.matrix }}
+        steps:
+            -   name: Set matrix values
+                id: set-matrix
+                run: |
+                    # Build the matrix JSON
+                    # OpenSwoole is only compatible with PHP 8.4
+                    cat << 'EOF' > matrix.json
+                    {
+                      "include": [
+                        {"php_version": "8.4", "variant": "fpm", "chromium": false},
+                        {"php_version": "8.4", "variant": "fpm", "chromium": true},
+                        {"php_version": "8.4", "variant": "frankenphp", "chromium": false},
+                        {"php_version": "8.4", "variant": "frankenphp", "chromium": true},
+                        {"php_version": "8.4", "variant": "roadrunner", "chromium": false},
+                        {"php_version": "8.4", "variant": "roadrunner", "chromium": true},
+                        {"php_version": "8.4", "variant": "openswoole", "chromium": false},
+                        {"php_version": "8.4", "variant": "openswoole", "chromium": true},
+                        {"php_version": "8.5", "variant": "fpm", "chromium": false},
+                        {"php_version": "8.5", "variant": "fpm", "chromium": true},
+                        {"php_version": "8.5", "variant": "frankenphp", "chromium": false},
+                        {"php_version": "8.5", "variant": "frankenphp", "chromium": true},
+                        {"php_version": "8.5", "variant": "roadrunner", "chromium": false},
+                        {"php_version": "8.5", "variant": "roadrunner", "chromium": true}
+                      ]
+                    }
+                    EOF
+                    echo "matrix=$(cat matrix.json | jq -c .)" >> $GITHUB_OUTPUT
+
+    build-amd64:
+        name: Build PHP ${{ matrix.php_version }} ${{ matrix.variant }}${{ matrix.chromium == true && '-chromium' || '' }} (amd64)
+        runs-on: ubuntu-latest
+        needs: setup
         strategy:
             fail-fast: false
-            matrix:
-                php_version: ["8.4", "8.5"]
-                variant: ["fpm", "frankenphp", "roadrunner", "openswoole"]
-                chromium: [false, true]
-                exclude:
-                    # OpenSwoole is not compatible with PHP 8.3 and 8.5
-                    -   php_version: "8.3"
-                        variant: "openswoole"
-                    -   php_version: "8.5"
-                        variant: "openswoole"
+            matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
         steps:
             -   name: Checkout code
                 uses: actions/checkout@v4
-
-            -   name: Set up QEMU
-                uses: docker/setup-qemu-action@v3
-                with:
-                    platforms: linux/amd64,linux/arm64
 
             -   name: Set up Docker Buildx
                 uses: docker/setup-buildx-action@v3
@@ -45,28 +65,91 @@ jobs:
                     username: ${{ github.actor }}
                     password: ${{ secrets.GITHUB_TOKEN }}
 
-            -   name: Extract metadata (tags, labels) for Docker
-                id: meta
-                uses: docker/metadata-action@v5
-                with:
-                    images: ghcr.io/forlaravel/docker
-                    tags: |
-                        type=raw,value=1.3-php${{ matrix.php_version }}-${{ matrix.variant }}${{ matrix.chromium == true && '-chromium' || '' }}
-                        type=raw,value=latest-php${{ matrix.php_version }}-${{ matrix.variant }}${{ matrix.chromium == true && '-chromium' || '' }}
-
-            -   name: Build and push multi-arch image
+            -   name: Build and push amd64 image
                 uses: docker/build-push-action@v5
                 with:
                     context: .
                     file: ./src/php-${{ matrix.variant }}/Dockerfile
-                    platforms: linux/amd64,linux/arm64
+                    platforms: linux/amd64
                     build-args: |
                         INPUT_PHP=${{ matrix.php_version }}
                         INSTALL_CHROMIUM=${{ matrix.chromium }}
-                    tags: ${{ steps.meta.outputs.tags }}
-                    labels: ${{ steps.meta.outputs.labels }}
+                    tags: ghcr.io/forlaravel/docker:1.3-php${{ matrix.php_version }}-${{ matrix.variant }}${{ matrix.chromium == true && '-chromium' || '' }}-amd64
                     push: true
                     provenance: false
                     sbom: false
-                    cache-from: type=gha,scope=php-${{ matrix.php_version }}-${{ matrix.variant }}${{ matrix.chromium == true && '-chromium' || '' }}
-                    cache-to: type=gha,mode=max,scope=php-${{ matrix.php_version }}-${{ matrix.variant }}${{ matrix.chromium == true && '-chromium' || '' }}
+                    cache-from: type=gha,scope=php-${{ matrix.variant }}${{ matrix.chromium == true && '-chromium' || '' }}-amd64
+                    cache-to: type=gha,mode=max,scope=php-${{ matrix.variant }}${{ matrix.chromium == true && '-chromium' || '' }}-amd64
+
+    build-arm64:
+        name: Build PHP ${{ matrix.php_version }} ${{ matrix.variant }}${{ matrix.chromium == true && '-chromium' || '' }} (arm64)
+        runs-on: ubuntu-24.04-arm
+        needs: setup
+        strategy:
+            fail-fast: false
+            matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
+        steps:
+            -   name: Checkout code
+                uses: actions/checkout@v4
+
+            -   name: Set up Docker Buildx
+                uses: docker/setup-buildx-action@v3
+
+            -   name: Log in to GitHub Container Registry
+                uses: docker/login-action@v3
+                with:
+                    registry: ghcr.io
+                    username: ${{ github.actor }}
+                    password: ${{ secrets.GITHUB_TOKEN }}
+
+            -   name: Build and push arm64 image
+                uses: docker/build-push-action@v5
+                with:
+                    context: .
+                    file: ./src/php-${{ matrix.variant }}/Dockerfile
+                    platforms: linux/arm64
+                    build-args: |
+                        INPUT_PHP=${{ matrix.php_version }}
+                        INSTALL_CHROMIUM=${{ matrix.chromium }}
+                    tags: ghcr.io/forlaravel/docker:1.3-php${{ matrix.php_version }}-${{ matrix.variant }}${{ matrix.chromium == true && '-chromium' || '' }}-arm64
+                    push: true
+                    provenance: false
+                    sbom: false
+                    cache-from: type=gha,scope=php-${{ matrix.variant }}${{ matrix.chromium == true && '-chromium' || '' }}-arm64
+                    cache-to: type=gha,mode=max,scope=php-${{ matrix.variant }}${{ matrix.chromium == true && '-chromium' || '' }}-arm64
+
+    create-manifest:
+        name: Create manifest PHP ${{ matrix.php_version }} ${{ matrix.variant }}${{ matrix.chromium == true && '-chromium' || '' }}
+        runs-on: ubuntu-latest
+        needs: [setup, build-amd64, build-arm64]
+        strategy:
+            fail-fast: false
+            matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
+        steps:
+            -   name: Log in to GitHub Container Registry
+                uses: docker/login-action@v3
+                with:
+                    registry: ghcr.io
+                    username: ${{ github.actor }}
+                    password: ${{ secrets.GITHUB_TOKEN }}
+
+            -   name: Create and push multi-arch manifest
+                run: |
+                    IMAGE_BASE="ghcr.io/forlaravel/docker"
+                    TAG_BASE="1.3-php${{ matrix.php_version }}-${{ matrix.variant }}${{ matrix.chromium == true && '-chromium' || '' }}"
+
+                    # Create versioned manifest
+                    docker manifest create ${IMAGE_BASE}:${TAG_BASE} \
+                        ${IMAGE_BASE}:${TAG_BASE}-amd64 \
+                        ${IMAGE_BASE}:${TAG_BASE}-arm64
+
+                    docker manifest push ${IMAGE_BASE}:${TAG_BASE}
+
+                    # Create latest manifest
+                    LATEST_TAG="latest-php${{ matrix.php_version }}-${{ matrix.variant }}${{ matrix.chromium == true && '-chromium' || '' }}"
+
+                    docker manifest create ${IMAGE_BASE}:${LATEST_TAG} \
+                        ${IMAGE_BASE}:${TAG_BASE}-amd64 \
+                        ${IMAGE_BASE}:${TAG_BASE}-arm64
+
+                    docker manifest push ${IMAGE_BASE}:${LATEST_TAG}
