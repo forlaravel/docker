@@ -90,6 +90,7 @@ Supervisor always runs, but specific workers are optional.
 | `ENABLE_HORIZON_WORKER` | `false` | Worker | Starts the Laravel Horizon process. |
 | `SKIP_INSTALL` | `false` | System | Skips Composer install, NPM install, asset build, and Laravel/Filament optimization. Use when dependencies and assets are pre-built into the image. |
 | `SKIP_LARAVEL_BOOT` | `false` | System | **FPM only.** Skips Laravel boot (useful for non-Laravel PHP apps). |
+| `SKIP_PERMISSION_FIX` | `false` | System | Skips the `chown`/`chmod` permission fix on `storage/` and `bootstrap/cache/`. Useful in dev environments with large storage directories where the recursive permission fix can hang or take a long time. |
 
 ### 5. Security Hardening
 Optional settings for tightening the runtime. All disabled by default.

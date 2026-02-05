@@ -237,19 +237,23 @@ echo "============================"
 
 
 # Fix storage permissions
-echo "Fixing storage and cache permissions to allow writing for www-data..."
-chown -R "$USER":www-data storage bootstrap/cache
-find storage bootstrap/cache -type d -exec chmod 775 {} \;
-find storage bootstrap/cache -type f -exec chmod 664 {} \;
+if [ "$SKIP_PERMISSION_FIX" = "true" ]; then
+   echo "Skipping permission fix (SKIP_PERMISSION_FIX=true)..."
+else
+   echo "Fixing storage and cache permissions to allow writing for www-data..."
+   chown -R "$USER":www-data storage bootstrap/cache
+   find storage bootstrap/cache -type d -exec chmod 775 {} \;
+   find storage bootstrap/cache -type f -exec chmod 664 {} \;
 
-if [ -f "database/database.sqlite" ]; then
-    chown "$USER":www-data database/database.sqlite
-    chmod 664 database/database.sqlite
+   if [ -f "database/database.sqlite" ]; then
+       chown "$USER":www-data database/database.sqlite
+       chmod 664 database/database.sqlite
+   fi
+
+   echo "============================"
+   echo "===  Permissions fixed   ==="
+   echo "============================"
 fi
-
-echo "============================"
-echo "===  Permissions fixed   ==="
-echo "============================"
 
 
 # Enable maintenance mode if requested

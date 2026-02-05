@@ -2,8 +2,7 @@
 
 ## Version 1.3.3 (2026-02-04)
 
-### Registry & Branding
-- Rebrand from `jonaaix/laravel-aio-docker` to `ghcr.io/forlaravel/docker`
+### Registry
 - Build scripts and CI now produce both versioned tags (e.g. `1.3-php8.4-fpm`) and `latest` tags (e.g. `latest-php8.4-fpm`)
 
 ### Security Hardening
