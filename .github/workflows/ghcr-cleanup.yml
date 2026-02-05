@@ -18,8 +18,5 @@ jobs:
                 with:
                     package: docker
                     token: ${{ secrets.GITHUB_TOKEN }}
-                    # Delete untagged images older than 14 days
-                    delete-untagged: true
-                    older-than: 14 days
-                    # Keep at least 3 untagged images as safety buffer
+                    # Keep only the 3 most recent untagged images, delete the rest
                     keep-n-untagged: 3
