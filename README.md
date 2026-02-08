@@ -16,7 +16,7 @@ A Docker image that runs Laravel applications. One container gives you PHP, Ngin
 
 Supports PHP 8.4 and 8.5, Laravel 10 through 13. You pick the PHP runtime: PHP-FPM for standard setups, or FrankenPHP, RoadRunner, OpenSwoole for [Laravel Octane](https://laravel.com/docs/octane). All images are multi-arch (amd64 + arm64), Alpine-based, and rebuilt weekly.
 
-The same image works for development and production. If you're looking for a Laravel Sail alternative that uses plain Docker Compose, this is it.
+The same image works for development and production. Unlike Laravel Sail, there's no custom CLI, just Docker Compose and environment variables.
 
 Fork of [jonaaix/laravel-aio-docker](https://github.com/jonaaix/laravel-aio-docker) with security hardening, OPcache/FPM tuning, HEALTHCHECK, Chromium split, and more config options.
 
@@ -88,21 +88,7 @@ ghcr.io/forlaravel/docker:1.3-php8.4-fpm
 
 ---
 
-## How it compares to Laravel Sail
-
-Sail wraps Docker behind its own CLI and spreads services across multiple containers. This image takes a different approach: everything PHP-related runs in one container, configured entirely through environment variables.
-
-| | Laravel Sail | This image |
-| :--- | :--- | :--- |
-| Architecture | Separate containers for PHP, Nginx, etc. | Single container (PHP + Nginx + Supervisor) |
-| Configuration | Sail CLI + docker-compose.yml | Environment variables |
-| Production | Development only | Same image for dev and prod |
-| Runtimes | PHP-FPM | FPM, FrankenPHP, RoadRunner, OpenSwoole |
-| Octane | Manual setup | Pick an Octane image, it's automatic |
-
 When you switch to an Octane image (RoadRunner/FrankenPHP/OpenSwoole) for the first time, the entrypoint installs the required packages automatically. Commit those changes to your repo.
-
----
 
 ## Configuration
 
