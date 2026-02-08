@@ -17,6 +17,51 @@ echo "User: $(whoami), UID: $(id -u)"
 echo
 
 
+apply_php_hardening() {
+   if [ -n "$PHP_DISABLE_FUNCTIONS" ] || [ -n "$PHP_OPEN_BASEDIR" ]; then
+      echo "Applying PHP security hardening..."
+      HARDENING_INI="/usr/local/etc/php/conf.d/security-hardening.ini"
+
+      if ! : > "$HARDENING_INI" 2>/dev/null; then
+         echo "ERROR: Cannot write to $HARDENING_INI (permission denied)"
+         echo "PHP security hardening FAILED - container is NOT hardened!"
+         return 1
+      fi
+
+      if [ -n "$PHP_DISABLE_FUNCTIONS" ]; then
+         echo "disable_functions = $PHP_DISABLE_FUNCTIONS" >> "$HARDENING_INI"
+         echo "  disable_functions = $PHP_DISABLE_FUNCTIONS"
+      fi
+
+      if [ -n "$PHP_OPEN_BASEDIR" ]; then
+         echo "open_basedir = $PHP_OPEN_BASEDIR" >> "$HARDENING_INI"
+         echo "  open_basedir = $PHP_OPEN_BASEDIR"
+      fi
+
+      # Reload PHP-FPM to pick up new settings (Octane workers haven't started yet)
+      if [ "$PHP_RUNTIME_CONFIG" = "fpm" ]; then
+         if pgrep "php-fpm" > /dev/null; then
+            echo "Reloading PHP-FPM to apply hardening..."
+            kill -USR2 "$(pgrep -o php-fpm)" || true
+         fi
+      fi
+
+      # Lock down the file after writing (laravel user can't chmod back but adds a layer)
+      chmod 444 "$HARDENING_INI"
+
+      # Verify the file was actually written
+      if [ -s "$HARDENING_INI" ]; then
+         echo "============================"
+         echo "=== PHP hardening applied ==="
+         echo "============================"
+      else
+         echo "ERROR: $HARDENING_INI is empty after write attempt"
+         echo "PHP security hardening FAILED - container is NOT hardened!"
+         return 1
+      fi
+   fi
+}
+
 shutdown_handler() {
    # NOTE: In the most recent Docker version, logging is disabled once stop signal received :( However it still works.
    echo "STOP signal received..."
@@ -144,32 +189,7 @@ if [ "$SKIP_LARAVEL_BOOT" = "true" ]; then
    echo "Skipping Laravel boot..."
 
    # Apply PHP security hardening if configured
-   if [ -n "$PHP_DISABLE_FUNCTIONS" ] || [ -n "$PHP_OPEN_BASEDIR" ]; then
-      echo "Applying PHP security hardening..."
-      HARDENING_INI="/usr/local/etc/php/conf.d/security-hardening.ini"
-      : > "$HARDENING_INI"
-
-      if [ -n "$PHP_DISABLE_FUNCTIONS" ]; then
-         echo "disable_functions = $PHP_DISABLE_FUNCTIONS" >> "$HARDENING_INI"
-         echo "  disable_functions = $PHP_DISABLE_FUNCTIONS"
-      fi
-
-      if [ -n "$PHP_OPEN_BASEDIR" ]; then
-         echo "open_basedir = $PHP_OPEN_BASEDIR" >> "$HARDENING_INI"
-         echo "  open_basedir = $PHP_OPEN_BASEDIR"
-      fi
-
-      if [ "$PHP_RUNTIME_CONFIG" = "fpm" ]; then
-         if pgrep "php-fpm" > /dev/null; then
-            echo "Reloading PHP-FPM to apply hardening..."
-            kill -USR2 "$(pgrep -o php-fpm)" || true
-         fi
-      fi
-
-      echo "============================"
-      echo "=== PHP hardening applied ==="
-      echo "============================"
-   fi
+   apply_php_hardening
 
    # Start cron (generic, not Laravel-specific)
    crond start -f -l 1 &
@@ -444,33 +464,7 @@ echo "============================"
 
 
 # Apply PHP security hardening if configured
-if [ -n "$PHP_DISABLE_FUNCTIONS" ] || [ -n "$PHP_OPEN_BASEDIR" ]; then
-   echo "Applying PHP security hardening..."
-   HARDENING_INI="/usr/local/etc/php/conf.d/security-hardening.ini"
-   : > "$HARDENING_INI"
-
-   if [ -n "$PHP_DISABLE_FUNCTIONS" ]; then
-      echo "disable_functions = $PHP_DISABLE_FUNCTIONS" >> "$HARDENING_INI"
-      echo "  disable_functions = $PHP_DISABLE_FUNCTIONS"
-   fi
-
-   if [ -n "$PHP_OPEN_BASEDIR" ]; then
-      echo "open_basedir = $PHP_OPEN_BASEDIR" >> "$HARDENING_INI"
-      echo "  open_basedir = $PHP_OPEN_BASEDIR"
-   fi
-
-   # Reload PHP-FPM to pick up new settings (Octane workers haven't started yet)
-   if [ "$PHP_RUNTIME_CONFIG" = "fpm" ]; then
-      if pgrep "php-fpm" > /dev/null; then
-         echo "Reloading PHP-FPM to apply hardening..."
-         kill -USR2 "$(pgrep -o php-fpm)" || true
-      fi
-   fi
-
-   echo "============================"
-   echo "=== PHP hardening applied ==="
-   echo "============================"
-fi
+apply_php_hardening
 
 if [ "$SKIP_INSTALL" = "true" ]; then
    echo "Skipping optimization (SKIP_INSTALL=true)..."
