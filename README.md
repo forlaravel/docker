@@ -157,9 +157,19 @@ For RoadRunner and FrankenPHP, `proc_open` is automatically removed from the dis
 
 `open_basedir` disables PHP's realpath cache, which can hurt performance. If you use it, set `PHP_OPCACHE_VALIDATE_TIMESTAMPS=0` (see below).
 
-### 6. Performance tuning (OPcache and PHP-FPM)
+### 6. Performance tuning
 
-These let you tune OPcache and PHP-FPM pool settings at runtime.
+These let you tune PHP, OPcache, PHP-FPM, and Nginx settings at runtime.
+
+#### PHP runtime
+
+| Variable | Maps to | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `PHP_MEMORY_LIMIT` | `memory_limit` | `512M` | Max memory per PHP process. |
+| `PHP_MAX_EXECUTION_TIME` | `max_execution_time` | `120` | Max seconds per request. Use queue jobs for long tasks. |
+| `PHP_POST_MAX_SIZE` | `post_max_size` | `128M` | Max POST body size. |
+| `PHP_UPLOAD_MAX_FILESIZE` | `upload_max_filesize` | `128M` | Max uploaded file size. |
+| `NGINX_CLIENT_MAX_BODY_SIZE` | `client_max_body_size` | `128M` | Nginx request body limit. Set this alongside `PHP_POST_MAX_SIZE`. |
 
 #### OPcache
 

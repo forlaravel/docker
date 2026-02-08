@@ -123,6 +123,28 @@ apply_php_performance() {
          PHP_OPCACHE_REVALIDATE_FREQ=${PHP_OPCACHE_REVALIDATE_FREQ:-0}
       fi
 
+      # --- PHP runtime overrides ---
+      if [ -n "$PHP_MEMORY_LIMIT" ]; then
+         echo "memory_limit=$PHP_MEMORY_LIMIT" >> "$OPCACHE_INI"
+         has_opcache=true
+      fi
+
+      if [ -n "$PHP_MAX_EXECUTION_TIME" ]; then
+         echo "max_execution_time=$PHP_MAX_EXECUTION_TIME" >> "$OPCACHE_INI"
+         has_opcache=true
+      fi
+
+      if [ -n "$PHP_POST_MAX_SIZE" ]; then
+         echo "post_max_size=$PHP_POST_MAX_SIZE" >> "$OPCACHE_INI"
+         has_opcache=true
+      fi
+
+      if [ -n "$PHP_UPLOAD_MAX_FILESIZE" ]; then
+         echo "upload_max_filesize=$PHP_UPLOAD_MAX_FILESIZE" >> "$OPCACHE_INI"
+         has_opcache=true
+      fi
+
+      # --- OPcache overrides ---
       if [ -n "$PHP_OPCACHE_VALIDATE_TIMESTAMPS" ]; then
          echo "opcache.validate_timestamps=$PHP_OPCACHE_VALIDATE_TIMESTAMPS" >> "$OPCACHE_INI"
          has_opcache=true
@@ -166,7 +188,7 @@ apply_php_performance() {
 
       if [ "$has_opcache" = true ]; then
          chmod 444 "$OPCACHE_INI"
-         echo "OPcache tuning applied:"
+         echo "PHP tuning applied:"
          sed 's/^/  /' "$OPCACHE_INI"
       fi
    fi
@@ -323,6 +345,12 @@ if [ "$PHP_RUNTIME_CONFIG" = "fpm" ]; then
    else
        echo "PHP-FPM is already running."
    fi
+fi
+
+# Apply Nginx client_max_body_size override if set
+if [ -n "$NGINX_CLIENT_MAX_BODY_SIZE" ]; then
+   echo "Setting Nginx client_max_body_size to $NGINX_CLIENT_MAX_BODY_SIZE..."
+   sed -i "s|client_max_body_size 128M;|client_max_body_size $NGINX_CLIENT_MAX_BODY_SIZE;|" /etc/nginx/nginx.conf
 fi
 
 # Start Nginx if not running
