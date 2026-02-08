@@ -21,7 +21,7 @@ The same image works for development and production. If you're looking for a Lar
 Fork of [jonaaix/laravel-aio-docker](https://github.com/jonaaix/laravel-aio-docker) with security hardening, OPcache/FPM tuning, HEALTHCHECK, Chromium split, and more config options.
 
 What you get:
-- PHP-FPM, FrankenPHP, RoadRunner, or OpenSwoole — pick your runtime
+- PHP-FPM, FrankenPHP, RoadRunner, or OpenSwoole
 - Nginx with HTTPS, WebSocket support, and security headers
 - Supervisor managing Horizon, queue workers, or Octane
 - Xdebug, Vite dev server, Composer/NPM auto-install
