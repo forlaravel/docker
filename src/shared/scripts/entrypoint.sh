@@ -110,11 +110,19 @@ apply_php_performance() {
    local has_fpm=false
 
    # --- OPcache tuning (global PHP ini, applies to all SAPIs) ---
+   # Base defaults are in php.ini; env vars here override for runtime tuning.
+   # In production (non-dev), disable timestamp validation for best performance.
    OPCACHE_INI="/usr/local/etc/php/conf.d/zzz-performance.ini"
 
    if ! : > "$OPCACHE_INI" 2>/dev/null; then
       echo "WARNING: Cannot write to $OPCACHE_INI — skipping OPcache tuning"
    else
+      # Production default: disable timestamp checking (env var overrides)
+      if [ "$ENV_DEV" != "true" ] && [ -z "$PHP_OPCACHE_VALIDATE_TIMESTAMPS" ]; then
+         PHP_OPCACHE_VALIDATE_TIMESTAMPS=0
+         PHP_OPCACHE_REVALIDATE_FREQ=${PHP_OPCACHE_REVALIDATE_FREQ:-0}
+      fi
+
       if [ -n "$PHP_OPCACHE_VALIDATE_TIMESTAMPS" ]; then
          echo "opcache.validate_timestamps=$PHP_OPCACHE_VALIDATE_TIMESTAMPS" >> "$OPCACHE_INI"
          has_opcache=true
@@ -164,6 +172,8 @@ apply_php_performance() {
    fi
 
    # --- FPM pool tuning (FPM only) ---
+   # Stock www.conf ships with pm.max_children=5 which is far too low.
+   # Apply sensible defaults for a typical container; env vars override any value.
    if [ "$PHP_RUNTIME_CONFIG" = "fpm" ]; then
       FPM_PERF="/usr/local/etc/php-fpm.d/zzz-performance.conf"
 
@@ -172,48 +182,26 @@ apply_php_performance() {
       else
          echo "[www]" >> "$FPM_PERF"
 
-         if [ -n "$PHP_FPM_PM" ]; then
-            echo "pm = $PHP_FPM_PM" >> "$FPM_PERF"
-            has_fpm=true
-         fi
+         # Defaults: dynamic pool sized for a typical 2GB container (~100MB per child)
+         echo "pm = ${PHP_FPM_PM:-dynamic}" >> "$FPM_PERF"
+         echo "pm.max_children = ${PHP_FPM_MAX_CHILDREN:-20}" >> "$FPM_PERF"
+         echo "pm.start_servers = ${PHP_FPM_START_SERVERS:-6}" >> "$FPM_PERF"
+         echo "pm.min_spare_servers = ${PHP_FPM_MIN_SPARE:-3}" >> "$FPM_PERF"
+         echo "pm.max_spare_servers = ${PHP_FPM_MAX_SPARE:-10}" >> "$FPM_PERF"
+         # Recycle workers after N requests to prevent memory leaks (0 = never)
+         echo "pm.max_requests = ${PHP_FPM_MAX_REQUESTS:-500}" >> "$FPM_PERF"
 
-         if [ -n "$PHP_FPM_MAX_CHILDREN" ]; then
-            echo "pm.max_children = $PHP_FPM_MAX_CHILDREN" >> "$FPM_PERF"
-            has_fpm=true
-         fi
+         chmod 444 "$FPM_PERF"
+         echo "FPM pool tuning applied:"
+         sed 's/^/  /' "$FPM_PERF"
 
-         if [ -n "$PHP_FPM_START_SERVERS" ]; then
-            echo "pm.start_servers = $PHP_FPM_START_SERVERS" >> "$FPM_PERF"
-            has_fpm=true
-         fi
-
-         if [ -n "$PHP_FPM_MIN_SPARE" ]; then
-            echo "pm.min_spare_servers = $PHP_FPM_MIN_SPARE" >> "$FPM_PERF"
-            has_fpm=true
-         fi
-
-         if [ -n "$PHP_FPM_MAX_SPARE" ]; then
-            echo "pm.max_spare_servers = $PHP_FPM_MAX_SPARE" >> "$FPM_PERF"
-            has_fpm=true
-         fi
-
-         if [ -n "$PHP_FPM_MAX_REQUESTS" ]; then
-            echo "pm.max_requests = $PHP_FPM_MAX_REQUESTS" >> "$FPM_PERF"
-            has_fpm=true
-         fi
-
-         if [ "$has_fpm" = true ]; then
-            chmod 444 "$FPM_PERF"
-            echo "FPM pool tuning applied:"
-            sed 's/^/  /' "$FPM_PERF"
-
-            # Reload FPM to pick up new settings
-            if pgrep "php-fpm" > /dev/null; then
-               echo "Reloading PHP-FPM to apply performance tuning..."
-               kill -USR2 "$(pgrep -o php-fpm)" || true
-            fi
+         # Reload FPM to pick up new settings
+         if pgrep "php-fpm" > /dev/null; then
+            echo "Reloading PHP-FPM to apply performance tuning..."
+            kill -USR2 "$(pgrep -o php-fpm)" || true
          fi
       fi
+      has_fpm=true
    fi
 
    if [ "$has_opcache" = true ] || [ "$has_fpm" = true ]; then
