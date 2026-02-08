@@ -105,6 +105,124 @@ apply_php_hardening() {
    fi
 }
 
+apply_php_performance() {
+   local has_opcache=false
+   local has_fpm=false
+
+   # --- OPcache tuning (global PHP ini, applies to all SAPIs) ---
+   OPCACHE_INI="/usr/local/etc/php/conf.d/zzz-performance.ini"
+
+   if ! : > "$OPCACHE_INI" 2>/dev/null; then
+      echo "WARNING: Cannot write to $OPCACHE_INI — skipping OPcache tuning"
+   else
+      if [ -n "$PHP_OPCACHE_VALIDATE_TIMESTAMPS" ]; then
+         echo "opcache.validate_timestamps=$PHP_OPCACHE_VALIDATE_TIMESTAMPS" >> "$OPCACHE_INI"
+         has_opcache=true
+      fi
+
+      if [ -n "$PHP_OPCACHE_REVALIDATE_FREQ" ]; then
+         echo "opcache.revalidate_freq=$PHP_OPCACHE_REVALIDATE_FREQ" >> "$OPCACHE_INI"
+         has_opcache=true
+      fi
+
+      if [ -n "$PHP_OPCACHE_MEMORY" ]; then
+         echo "opcache.memory_consumption=$PHP_OPCACHE_MEMORY" >> "$OPCACHE_INI"
+         has_opcache=true
+      fi
+
+      if [ -n "$PHP_OPCACHE_MAX_FILES" ]; then
+         echo "opcache.max_accelerated_files=$PHP_OPCACHE_MAX_FILES" >> "$OPCACHE_INI"
+         has_opcache=true
+      fi
+
+      if [ -n "$PHP_OPCACHE_INTERNED_STRINGS" ]; then
+         echo "opcache.interned_strings_buffer=$PHP_OPCACHE_INTERNED_STRINGS" >> "$OPCACHE_INI"
+         has_opcache=true
+      fi
+
+      if [ -n "$PHP_OPCACHE_JIT" ]; then
+         echo "opcache.jit=$PHP_OPCACHE_JIT" >> "$OPCACHE_INI"
+         has_opcache=true
+      fi
+
+      if [ -n "$PHP_OPCACHE_JIT_BUFFER" ]; then
+         echo "opcache.jit_buffer_size=$PHP_OPCACHE_JIT_BUFFER" >> "$OPCACHE_INI"
+         has_opcache=true
+      fi
+
+      if [ -n "$PHP_OPCACHE_PRELOAD" ]; then
+         echo "opcache.preload=$PHP_OPCACHE_PRELOAD" >> "$OPCACHE_INI"
+         echo "opcache.preload_user=laravel" >> "$OPCACHE_INI"
+         has_opcache=true
+      fi
+
+      if [ "$has_opcache" = true ]; then
+         chmod 444 "$OPCACHE_INI"
+         echo "OPcache tuning applied:"
+         sed 's/^/  /' "$OPCACHE_INI"
+      fi
+   fi
+
+   # --- FPM pool tuning (FPM only) ---
+   if [ "$PHP_RUNTIME_CONFIG" = "fpm" ]; then
+      FPM_PERF="/usr/local/etc/php-fpm.d/zzz-performance.conf"
+
+      if ! : > "$FPM_PERF" 2>/dev/null; then
+         echo "WARNING: Cannot write to $FPM_PERF — skipping FPM tuning"
+      else
+         echo "[www]" >> "$FPM_PERF"
+
+         if [ -n "$PHP_FPM_PM" ]; then
+            echo "pm = $PHP_FPM_PM" >> "$FPM_PERF"
+            has_fpm=true
+         fi
+
+         if [ -n "$PHP_FPM_MAX_CHILDREN" ]; then
+            echo "pm.max_children = $PHP_FPM_MAX_CHILDREN" >> "$FPM_PERF"
+            has_fpm=true
+         fi
+
+         if [ -n "$PHP_FPM_START_SERVERS" ]; then
+            echo "pm.start_servers = $PHP_FPM_START_SERVERS" >> "$FPM_PERF"
+            has_fpm=true
+         fi
+
+         if [ -n "$PHP_FPM_MIN_SPARE" ]; then
+            echo "pm.min_spare_servers = $PHP_FPM_MIN_SPARE" >> "$FPM_PERF"
+            has_fpm=true
+         fi
+
+         if [ -n "$PHP_FPM_MAX_SPARE" ]; then
+            echo "pm.max_spare_servers = $PHP_FPM_MAX_SPARE" >> "$FPM_PERF"
+            has_fpm=true
+         fi
+
+         if [ -n "$PHP_FPM_MAX_REQUESTS" ]; then
+            echo "pm.max_requests = $PHP_FPM_MAX_REQUESTS" >> "$FPM_PERF"
+            has_fpm=true
+         fi
+
+         if [ "$has_fpm" = true ]; then
+            chmod 444 "$FPM_PERF"
+            echo "FPM pool tuning applied:"
+            sed 's/^/  /' "$FPM_PERF"
+
+            # Reload FPM to pick up new settings
+            if pgrep "php-fpm" > /dev/null; then
+               echo "Reloading PHP-FPM to apply performance tuning..."
+               kill -USR2 "$(pgrep -o php-fpm)" || true
+            fi
+         fi
+      fi
+   fi
+
+   if [ "$has_opcache" = true ] || [ "$has_fpm" = true ]; then
+      echo "============================"
+      echo "=== Performance tuned    ==="
+      echo "============================"
+   fi
+}
+
 shutdown_handler() {
    # NOTE: In the most recent Docker version, logging is disabled once stop signal received :( However it still works.
    echo "STOP signal received..."
@@ -233,6 +351,9 @@ if [ "$SKIP_LARAVEL_BOOT" = "true" ]; then
 
    # Apply PHP security hardening if configured
    apply_php_hardening
+
+   # Apply PHP performance tuning if configured
+   apply_php_performance
 
    # Start cron (generic, not Laravel-specific)
    crond start -f -l 1 &
@@ -508,6 +629,9 @@ echo "============================"
 
 # Apply PHP security hardening if configured
 apply_php_hardening
+
+# Apply PHP performance tuning if configured
+apply_php_performance
 
 if [ "$SKIP_INSTALL" = "true" ]; then
    echo "Skipping optimization (SKIP_INSTALL=true)..."

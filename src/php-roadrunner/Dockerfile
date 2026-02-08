@@ -102,6 +102,10 @@ RUN find /scripts -type f -name "*.sh" -exec chmod +x {} \;
 RUN chown -R laravel:laravel /etc/supervisor/conf.d \
  && chmod -R 755 /etc/supervisor/conf.d
 
+# Pre-create runtime config file writable by laravel (directory stays root-owned)
+RUN touch /usr/local/etc/php/conf.d/zzz-performance.ini \
+ && chown laravel:laravel /usr/local/etc/php/conf.d/zzz-performance.ini
+
 # Set the user to run the container
 USER laravel
 

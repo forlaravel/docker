@@ -6,12 +6,8 @@
 
 <h1 align="center">Laravel Docker Image</h1>
 
-> **Fork of [jonaaix/laravel-aio-docker](https://github.com/forlaravel/docker)** with some security hardening: Docker HEALTHCHECK, restricted `/basic_status`, Nginx security headers, access logging, PHP session hardening, optional Chromium, supervisor log rotation, inline maintenance page CSS, and new env vars for PHP execution restriction and function/basedir hardening.
-
 <p align="center">
-This all-in-one Docker runtime image is designed specifically for Laravel applications, providing a complete, pre-configured
-environment that works seamlessly with any Laravel project. It streamlines setup and handles all essential configurations,
-ensuring your Laravel application is ready to run out of the box with minimal effort.
+All-in-one Docker runtime for Laravel. Nginx, PHP, Supervisor, Cron, SSL — zero config.
 </p>
 
 <p align="center">
@@ -22,35 +18,67 @@ ensuring your Laravel application is ready to run out of the box with minimal ef
 
 ---
 
-##### Laravel 12 & 13
-###### PHP 8.5
-- `ghcr.io/forlaravel/docker:1.3-php8.5-fpm`
-- `ghcr.io/forlaravel/docker:1.3-php8.5-roadrunner`
-- `ghcr.io/forlaravel/docker:1.3-php8.5-frankenphp`
-- _openswoole is not compatible with PHP 8.5 yet_
+## Quick Start
 
-##### Laravel 10 & 11
-###### PHP 8.4
-- `ghcr.io/forlaravel/docker:1.3-php8.4-fpm`
-- `ghcr.io/forlaravel/docker:1.3-php8.4-roadrunner`
-- `ghcr.io/forlaravel/docker:1.3-php8.4-frankenphp`
-- `ghcr.io/forlaravel/docker:1.3-php8.4-openswoole`
+```yaml
+services:
+   app:
+      image: ghcr.io/forlaravel/docker:latest-php8.4-fpm
+      volumes:
+         - ./:/app
+      ports:
+         - "8000:8000"
+         - "8443:8443"
+```
 
-##### With Chromium (add `-chromium` suffix)
-For PDF generation via Puppeteer/Browsershot, use the `-chromium` variants:
-- `ghcr.io/forlaravel/docker:1.3-php8.5-fpm-chromium`
-- `ghcr.io/forlaravel/docker:1.3-php8.4-fpm-chromium`
-- etc.
+Mount your Laravel project to `/app` and you're done. HTTP on `:8000`, HTTPS on `:8443`.
 
-#### Note:
-When switching to a Laravel Octane based image (roadrunner/frankenphp/swoole) for the first time,
-the entrypoint will automatically set up all requirements if not already available. 
-You can commit the changes to your repository.
+---
+
+## Available Images
+
+All images are multi-arch (`amd64` + `arm64`) and rebuilt weekly.
+
+#### PHP 8.5 (Laravel 12+)
+| Runtime | Image |
+| :--- | :--- |
+| FPM | `ghcr.io/forlaravel/docker:latest-php8.5-fpm` |
+| FrankenPHP | `ghcr.io/forlaravel/docker:latest-php8.5-frankenphp` |
+| RoadRunner | `ghcr.io/forlaravel/docker:latest-php8.5-roadrunner` |
+
+#### PHP 8.4 (Laravel 10+)
+| Runtime | Image |
+| :--- | :--- |
+| FPM | `ghcr.io/forlaravel/docker:latest-php8.4-fpm` |
+| FrankenPHP | `ghcr.io/forlaravel/docker:latest-php8.4-frankenphp` |
+| RoadRunner | `ghcr.io/forlaravel/docker:latest-php8.4-roadrunner` |
+| OpenSwoole | `ghcr.io/forlaravel/docker:latest-php8.4-openswoole` |
+
+> OpenSwoole is not compatible with PHP 8.5 yet.
+
+#### With Chromium (PDF generation)
+Add `-chromium` to any tag for Puppeteer/Browsershot support:
+```
+ghcr.io/forlaravel/docker:latest-php8.4-fpm-chromium
+```
+
+#### Pinned versions
+Replace `latest` with a version number (e.g. `1.3`) to pin:
+```
+ghcr.io/forlaravel/docker:1.3-php8.4-fpm
+```
+
+---
 
 ### Difference to Laravel Sail
 
 This image relies exclusively on **native Docker tooling** and intentionally avoids additional abstraction layers or custom APIs. It gives developers **full control over build, runtime, and configuration**, without being constrained by predefined conventions. Development and production setups are based on the same image and are fully reproducible.
 
+> When switching to a Laravel Octane based image (roadrunner/frankenphp/openswoole) for the first time,
+> the entrypoint will automatically set up all requirements if not already available.
+> You can commit the changes to your repository.
+
+---
 
 ## Configuration
 
@@ -84,26 +112,79 @@ The system runs in **Production Mode** by default.
 ### 4. Background Services & System
 Supervisor always runs, but specific workers are optional.
 
-| Variable | Default | Context | Description |
-| :--- | :--- | :--- | :--- |
-| `ENABLE_QUEUE_WORKER` | `false` | Worker | Starts the standard Laravel Queue Worker. |
-| `ENABLE_HORIZON_WORKER` | `false` | Worker | Starts the Laravel Horizon process. |
-| `SKIP_INSTALL` | `false` | System | Skips Composer install, NPM install, asset build, and Laravel/Filament optimization. Use when dependencies and assets are pre-built into the image. |
-| `SKIP_LARAVEL_BOOT` | `false` | System | **FPM only.** Skips Laravel boot (useful for non-Laravel PHP apps). |
-| `SKIP_PERMISSION_FIX` | `false` | System | Skips the `chown`/`chmod` permission fix on `storage/` and `bootstrap/cache/`. Useful in dev environments with large storage directories where the recursive permission fix can hang or take a long time. |
+| Variable | Default | Description |
+| :--- | :--- | :--- |
+| `ENABLE_QUEUE_WORKER` | `false` | Starts the standard Laravel Queue Worker. |
+| `ENABLE_HORIZON_WORKER` | `false` | Starts the Laravel Horizon process. |
+| `SKIP_INSTALL` | `false` | Skips Composer install, NPM install, asset build, and Laravel/Filament optimization. Use when dependencies and assets are pre-built into the image. |
+| `SKIP_LARAVEL_BOOT` | `false` | **FPM only.** Skips Laravel boot entirely (useful for non-Laravel PHP apps). |
+| `SKIP_PERMISSION_FIX` | `false` | Skips the `chown`/`chmod` permission fix on `storage/` and `bootstrap/cache/`. |
 
 ### 5. Security Hardening
 Optional settings for tightening the runtime. All disabled by default.
 
 | Variable | Default | Description |
 | :--- | :--- | :--- |
-| `NGINX_RESTRICT_PHP_EXECUTION` | `false` | Only allow `index.php` to be executed by PHP. All other `.php` requests are denied with 404. Works for both FPM and Octane variants. |
-| `PHP_DISABLE_FUNCTIONS` | _(unset)_ | Comma-separated list of PHP functions to disable (e.g. `exec,shell_exec,system,passthru`). Applied after `composer install` so Composer still works. For FPM, PHP-FPM is reloaded automatically. |
-| `PHP_OPEN_BASEDIR` | _(unset)_ | Restrict PHP filesystem access (e.g. `/app:/tmp`). Applied after `composer install`. |
+| `NGINX_RESTRICT_PHP_EXECUTION` | `false` | Only allow `index.php` to be executed by PHP. All other `.php` requests return 404. |
+| `PHP_DISABLE_FUNCTIONS` | _(unset)_ | Comma-separated list of PHP functions to disable (e.g. `exec,shell_exec,system,passthru,proc_open,popen`). |
+| `PHP_OPEN_BASEDIR` | _(unset)_ | Restrict PHP filesystem access to these paths (e.g. `/app:/tmp`). |
 
-> **Note:** `PHP_DISABLE_FUNCTIONS` and `PHP_OPEN_BASEDIR` are written to a PHP ini file after Composer runs but before Supervisor starts workers. This means Composer/Artisan boot commands are unaffected, while the running application is hardened.
+**How restrictions are applied per runtime:**
 
-### 6. Maintenance Mode
+| Runtime | Mechanism | Web requests | CLI (Horizon, artisan, queue) |
+| :--- | :--- | :--- | :--- |
+| **FPM** | `php_admin_value` in FPM pool config | Restricted | Unrestricted |
+| **Octane** | `-d` flags on Octane supervisor command | Restricted | Unrestricted |
+
+This means Horizon and queue workers always have full access to `proc_open`, `pcntl_fork`, etc. — only the web-facing process is locked down.
+
+> **Note:** For RoadRunner and FrankenPHP, `proc_open` is automatically removed from the disable list (they need it to start). A warning is logged. Swoole does not need `proc_open`.
+
+> **Note:** `open_basedir` disables PHP's realpath cache, which can impact performance. See [Performance Tuning](#6-performance-tuning) to mitigate this with OPcache settings.
+
+### 6. Performance Tuning
+
+Optional environment variables for tuning OPcache and PHP-FPM. When unset, the image defaults apply.
+
+#### OPcache
+
+| Variable | Maps to | Image default | Description |
+| :--- | :--- | :--- | :--- |
+| `PHP_OPCACHE_VALIDATE_TIMESTAMPS` | `opcache.validate_timestamps` | `1` | Set to `0` in production to skip file modification checks. **Biggest performance win**, especially with `open_basedir`. |
+| `PHP_OPCACHE_REVALIDATE_FREQ` | `opcache.revalidate_freq` | `2` | Seconds between timestamp checks. Irrelevant when `validate_timestamps=0`. |
+| `PHP_OPCACHE_MEMORY` | `opcache.memory_consumption` | `1024` | OPcache memory in MB. |
+| `PHP_OPCACHE_MAX_FILES` | `opcache.max_accelerated_files` | `20000` | Max number of scripts to cache. |
+| `PHP_OPCACHE_INTERNED_STRINGS` | `opcache.interned_strings_buffer` | `16` | Interned strings memory in MB. |
+| `PHP_OPCACHE_JIT` | `opcache.jit` | `disable` | JIT mode (`tracing` for best performance, PHP 8.0+). |
+| `PHP_OPCACHE_JIT_BUFFER` | `opcache.jit_buffer_size` | `64M` | Memory allocated for JIT compiled code. |
+| `PHP_OPCACHE_PRELOAD` | `opcache.preload` | _(unset)_ | Path to preload script (e.g. `/app/vendor/preload.php`). |
+
+#### PHP-FPM Pool (FPM runtime only)
+
+| Variable | Maps to | Image default | Description |
+| :--- | :--- | :--- | :--- |
+| `PHP_FPM_PM` | `pm` | `dynamic` | Process manager mode: `static`, `dynamic`, or `ondemand`. |
+| `PHP_FPM_MAX_CHILDREN` | `pm.max_children` | `5` | Max number of FPM worker processes. |
+| `PHP_FPM_START_SERVERS` | `pm.start_servers` | `2` | Workers started on boot (dynamic mode). |
+| `PHP_FPM_MIN_SPARE` | `pm.min_spare_servers` | `1` | Minimum idle workers (dynamic mode). |
+| `PHP_FPM_MAX_SPARE` | `pm.max_spare_servers` | `3` | Maximum idle workers (dynamic mode). |
+| `PHP_FPM_MAX_REQUESTS` | `pm.max_requests` | `0` | Recycle workers after N requests. Prevents memory leaks. |
+
+#### Recommended production settings
+
+```yaml
+environment:
+   # Don't check if files changed on disk (opcache serves from memory)
+   - PHP_OPCACHE_VALIDATE_TIMESTAMPS=0
+   # Fixed pool of workers, sized for available memory (~50MB per worker)
+   - PHP_FPM_PM=static
+   - PHP_FPM_MAX_CHILDREN=30
+   - PHP_FPM_MAX_REQUESTS=1000
+```
+
+> **Tip:** To estimate `max_children`, divide your container memory limit by ~50MB per worker. For a 2GB container: `2048 / 50 ≈ 40`. Leave headroom for Nginx, Supervisor, and other processes — `30` is a safe starting point.
+
+### 7. Maintenance Mode
 Control Laravel's maintenance mode during container boot (e.g., for deployments).
 
 | Variable | Default | Description |
@@ -113,26 +194,85 @@ Control Laravel's maintenance mode during container boot (e.g., for deployments)
 | `MAINTENANCE_RENDER` | `errors::503` | Custom view to render during maintenance. |
 | `MAINTENANCE_RETRY` | `10` | Retry-After header value in seconds. |
 
+---
 
-**Check the examples directory for full example docker-compose configurations.**
+## Examples
 
-A typical dev setup might look like this:
-```yml
-sevices:
-   php:
-      image: ghcr.io/forlaravel/docker:1.3-php8.5-fpm
+### Development
+
+```yaml
+services:
+   app:
+      image: ghcr.io/forlaravel/docker:latest-php8.5-fpm
       volumes:
-         - ./:/app:rw
+         - ./:/app
       environment:
          ENV_DEV: true
          DEV_NPM_RUN_DEV: true
-         ENABLE_SUPERVISOR: true
+         DEV_ENABLE_XDEBUG: true
          ENABLE_HORIZON_WORKER: true
       ports:
-         - "8000:8000" # http
-         - "8443:8443" # https (self-signed)
-         - "5173:5173" # vite
+         - "8000:8000"
+         - "8443:8443"
+         - "5173:5173"
+      restart: unless-stopped
+      depends_on:
+         - mysql
+      networks:
+         - app
+
+   mysql:
+      image: mariadb:lts
+      command:
+         - '--character-set-server=utf8mb4'
+         - '--collation-server=utf8mb4_unicode_ci'
+         - '--skip-name-resolve'
+      volumes:
+         - db_volume:/var/lib/mysql/:delegated
+      environment:
+         MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+         MYSQL_USER: ${DB_USERNAME}
+         MYSQL_PASSWORD: ${DB_PASSWORD}
+         MYSQL_DATABASE: ${DB_DATABASE}
+      ports:
+         - "3306:3306"
+      restart: unless-stopped
+
+volumes:
+   db_volume:
 ```
+
+### Production (hardened)
+
+```yaml
+services:
+   app:
+      image: ghcr.io/forlaravel/docker:1.3-php8.4-fpm
+      volumes:
+         - ./:/app:ro
+         - ./storage/logs:/app/storage/logs
+         - ./storage/framework:/app/storage/framework
+         - ./bootstrap/cache:/app/bootstrap/cache
+      environment:
+         - SKIP_INSTALL=true
+         - PROD_RUN_ARTISAN_MIGRATE=true
+         - ENABLE_HORIZON_WORKER=true
+         # Security
+         - NGINX_RESTRICT_PHP_EXECUTION=true
+         - PHP_DISABLE_FUNCTIONS=exec,shell_exec,system,passthru,proc_open,popen,pcntl_exec,pcntl_fork
+         - PHP_OPEN_BASEDIR=/app:/tmp
+         # Performance
+         - PHP_OPCACHE_VALIDATE_TIMESTAMPS=0
+         - PHP_FPM_PM=static
+         - PHP_FPM_MAX_CHILDREN=30
+         - PHP_FPM_MAX_REQUESTS=1000
+      mem_limit: 2g
+      restart: unless-stopped
+```
+
+> Mount `/app:ro` and only make writable the directories Laravel needs (`storage/logs`, `storage/framework`, `bootstrap/cache`). This prevents a compromised app from modifying its own code.
+
+---
 
 ## SSL / HTTPS (Port 8443)
 
@@ -182,7 +322,11 @@ But on macOS the default group is `staff`, so you might need to run the followin
 sudo chown -R $(whoami):staff /path/to/app
 ```
 
-## Laravel Boost MCP
+---
+
+## Additional Guides
+
+### Laravel Boost MCP
 Using Laravel Boost with the docker container is totally possible with the following steps:
 ##### 1. Create a bridge script mcp-boost.sh in your project root directory
 ```bash
@@ -211,7 +355,7 @@ e.g. for **JetBrains AI Assistant**:
 Settings -> Tools -> AI Assistant -> MCP -> Edit Laravel Boost -> Working Directory
 ```
 
-## Xdebug
+### Xdebug
 To enable xdebug, set `DEV_ENABLE_XDEBUG` to `true` in your `docker-compose.yml` file.
 You can connect to the xdebug server on port `9003`.
 
@@ -235,7 +379,7 @@ You can connect to the xdebug server on port `9003`.
 </details>
 
 
-## Serving Javascript app with integrated nginx
+### Serving Javascript app with integrated nginx
 Create a custom nginx.conf in your repository, and mount it in place of the default one.
 Also, mount your javascript app in the `/my-app` directory.
 ```yml
@@ -284,113 +428,15 @@ location ^~ /app/ {
 ####### End serving JS app #########
 ####################################
 ```
-</details>  
-
-
-
-## Custom scripts
-You can hook into the boot process by mounting your custom script directories.
-The scripts will be executed in alphabetical order.
-
-```yml
-services:
-   php:
-      volumes:
-         - ./docker/before-boot:/custom-scripts/before-boot
-         - ./docker/after-boot:/custom-scripts/after-boot
-```
-
-### Example docker-compose.yml for DEVELOPMENT
-<details>
-<summary>docker-compose.yml (click to expand)</summary>
-
-```yaml
-# WARNING: Make sure the project-folder-name is unique on your server!
-# You should disable port-exposure in production!
-
-volumes:
-   db_volume:
-      driver: local
-
-services:
-   php:
-      container_name: ${APP_NAME}_php
-      image: ghcr.io/forlaravel/docker:1.3-php8.5-fpm
-      stop_grace_period: 60s
-      volumes:
-         - ./:/app
-      environment:
-         ENV_DEV: true
-         DEV_NPM_RUN_DEV: true
-         DEV_ENABLE_XDEBUG: true
-         ENABLE_HORIZON_WORKER: true
-      ports:
-         - "8000:8000" # http
-         - "8443:8443" # https (self-signed)
-         - "5173:5173" # vite
-      restart: unless-stopped
-      depends_on:
-         - mysql
-         # - redis
-      networks:
-         - app
-
-   mysql:
-      container_name: ${APP_NAME}_mysql
-      image: mariadb:lts
-      # image: mysql:lts
-      command:
-         - '--character-set-server=utf8mb4'
-         - '--collation-server=utf8mb4_unicode_ci'
-         - '--skip-name-resolve' # Disable DNS lookups (not needed in Docker, improves performance)
-      volumes:
-         - db_volume:/var/lib/mysql/:delegated
-      cap_add:
-         - SYS_NICE # Allow the container to adjust process priority (optional for performance tuning)
-      environment:
-         # MySQL specific configuration
-         # MYSQL_ALLOW_EMPTY_PASSWORD: 'false' # Disallow empty password
-         # MYSQL_INITDB_SKIP_TZINFO: '1' # Skip loading DB time zone tables (improves performance)
-         ### Database initialization ###
-         MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
-         MYSQL_USER: ${DB_USERNAME}
-         MYSQL_PASSWORD: ${DB_PASSWORD}
-         MYSQL_DATABASE: ${DB_DATABASE}
-      ports:
-         - "3306:3306"
-      restart: unless-stopped
-```
 </details>
 
 
-### Adding Redis
-
-To add Redis to your project, add the following service to your `docker-compose.yml` file:
-
-```yml
-volumes:
-   redis_volume:
-      driver: local
-
-redis:
-   container_name: ${APP_NAME}_redis
-   image: redis:8-alpine
-   volumes:
-      - redis_volume:/data
-   command: [ "redis-server", "--requirepass", "${REDIS_PASSWORD}" ]
-   ports:
-      - "6379:6379"
-   restart: unless-stopped
-   networks:
-      - app
-```
-
-### Adding Chromium PDF
+### Adding Chromium for PDF generation
 
 Chromium is **not** included in the default images to keep them smaller (~200MB savings). To use Chromium for PDF generation, use the `-chromium` image variant:
 
 ```yaml
-image: ghcr.io/forlaravel/docker:1.3-php8.4-fpm-chromium
+image: ghcr.io/forlaravel/docker:latest-php8.4-fpm-chromium
 ```
 
 When building locally, pass the `--chromium` flag:
@@ -432,11 +478,27 @@ class PDF {
 
 ```
 
+### Adding Redis
+```yml
+volumes:
+   redis_volume:
+      driver: local
+
+redis:
+   image: redis:8-alpine
+   volumes:
+      - redis_volume:/data
+   command: [ "redis-server", "--requirepass", "${REDIS_PASSWORD}" ]
+   ports:
+      - "6379:6379"
+   restart: unless-stopped
+   networks:
+      - app
+```
 
 ### Adding PhpMyAdmin
 ```yaml
 pma:
-   container_name: ${APP_NAME}_pma
    image: phpmyadmin:latest
    environment:
       PMA_HOST: mysql
@@ -446,9 +508,18 @@ pma:
    restart: unless-stopped
    depends_on:
       - mysql
-   networks:
-      - default
-      - main-proxy
+```
+
+### Custom scripts
+You can hook into the boot process by mounting your custom script directories.
+The scripts will be executed in alphabetical order.
+
+```yml
+services:
+   php:
+      volumes:
+         - ./docker/before-boot:/custom-scripts/before-boot
+         - ./docker/after-boot:/custom-scripts/after-boot
 ```
 
 ### Debugging nginx configuration
