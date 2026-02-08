@@ -103,9 +103,10 @@ RUN find /scripts -type f -name "*.sh" -exec chmod +x {} \;
 RUN chown -R laravel:laravel /etc/supervisor/conf.d \
  && chmod -R 755 /etc/supervisor/conf.d
 
-# Pre-create PHP security hardening file writable by laravel (directory stays root-owned)
-RUN touch /usr/local/etc/php/conf.d/security-hardening.ini \
- && chown laravel:laravel /usr/local/etc/php/conf.d/security-hardening.ini
+# Pre-create PHP-FPM security hardening file writable by laravel (directories stay root-owned)
+# Uses php_admin_value so restrictions apply only to web requests, not CLI (Horizon, artisan)
+RUN touch /usr/local/etc/php-fpm.d/zzz-security-hardening.conf \
+ && chown laravel:laravel /usr/local/etc/php-fpm.d/zzz-security-hardening.conf
 
 # Set the user to run the container
 USER laravel

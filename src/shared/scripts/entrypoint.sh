@@ -18,47 +18,75 @@ echo
 
 
 apply_php_hardening() {
-   if [ -n "$PHP_DISABLE_FUNCTIONS" ] || [ -n "$PHP_OPEN_BASEDIR" ]; then
-      echo "Applying PHP security hardening..."
-      HARDENING_INI="/usr/local/etc/php/conf.d/security-hardening.ini"
+   if [ -z "$PHP_DISABLE_FUNCTIONS" ] && [ -z "$PHP_OPEN_BASEDIR" ]; then
+      return 0
+   fi
 
-      if ! : > "$HARDENING_INI" 2>/dev/null; then
-         echo "ERROR: Cannot write to $HARDENING_INI (permission denied)"
+   echo "Applying PHP security hardening..."
+
+   if [ "$PHP_RUNTIME_CONFIG" = "fpm" ]; then
+      # FPM: use php_admin_value in pool config (web requests only, CLI unaffected)
+      # This allows Horizon/artisan/queue workers to use proc_open, pcntl_*, etc.
+      HARDENING_FILE="/usr/local/etc/php-fpm.d/zzz-security-hardening.conf"
+
+      if ! : > "$HARDENING_FILE" 2>/dev/null; then
+         echo "ERROR: Cannot write to $HARDENING_FILE (permission denied)"
+         echo "PHP security hardening FAILED - container is NOT hardened!"
+         return 1
+      fi
+
+      echo "[www]" >> "$HARDENING_FILE"
+
+      if [ -n "$PHP_DISABLE_FUNCTIONS" ]; then
+         echo "php_admin_value[disable_functions] = $PHP_DISABLE_FUNCTIONS" >> "$HARDENING_FILE"
+         echo "  disable_functions = $PHP_DISABLE_FUNCTIONS (FPM only)"
+      fi
+
+      if [ -n "$PHP_OPEN_BASEDIR" ]; then
+         echo "php_admin_value[open_basedir] = $PHP_OPEN_BASEDIR" >> "$HARDENING_FILE"
+         echo "  open_basedir = $PHP_OPEN_BASEDIR (FPM only)"
+      fi
+
+      # Reload PHP-FPM to pick up new settings
+      if pgrep "php-fpm" > /dev/null; then
+         echo "Reloading PHP-FPM to apply hardening..."
+         kill -USR2 "$(pgrep -o php-fpm)" || true
+      fi
+   else
+      # Octane: no FPM pool separation, apply globally (affects CLI too)
+      HARDENING_FILE="/usr/local/etc/php/conf.d/security-hardening.ini"
+      echo "WARNING: Non-FPM runtime — hardening applies globally (CLI included)."
+      echo "         Horizon/queue workers will also be restricted."
+
+      if ! : > "$HARDENING_FILE" 2>/dev/null; then
+         echo "ERROR: Cannot write to $HARDENING_FILE (permission denied)"
          echo "PHP security hardening FAILED - container is NOT hardened!"
          return 1
       fi
 
       if [ -n "$PHP_DISABLE_FUNCTIONS" ]; then
-         echo "disable_functions = $PHP_DISABLE_FUNCTIONS" >> "$HARDENING_INI"
-         echo "  disable_functions = $PHP_DISABLE_FUNCTIONS"
+         echo "disable_functions = $PHP_DISABLE_FUNCTIONS" >> "$HARDENING_FILE"
+         echo "  disable_functions = $PHP_DISABLE_FUNCTIONS (global)"
       fi
 
       if [ -n "$PHP_OPEN_BASEDIR" ]; then
-         echo "open_basedir = $PHP_OPEN_BASEDIR" >> "$HARDENING_INI"
-         echo "  open_basedir = $PHP_OPEN_BASEDIR"
+         echo "open_basedir = $PHP_OPEN_BASEDIR" >> "$HARDENING_FILE"
+         echo "  open_basedir = $PHP_OPEN_BASEDIR (global)"
       fi
+   fi
 
-      # Reload PHP-FPM to pick up new settings (Octane workers haven't started yet)
-      if [ "$PHP_RUNTIME_CONFIG" = "fpm" ]; then
-         if pgrep "php-fpm" > /dev/null; then
-            echo "Reloading PHP-FPM to apply hardening..."
-            kill -USR2 "$(pgrep -o php-fpm)" || true
-         fi
-      fi
+   # Lock down the file after writing
+   chmod 444 "$HARDENING_FILE"
 
-      # Lock down the file after writing (laravel user can't chmod back but adds a layer)
-      chmod 444 "$HARDENING_INI"
-
-      # Verify the file was actually written
-      if [ -s "$HARDENING_INI" ]; then
-         echo "============================"
-         echo "=== PHP hardening applied ==="
-         echo "============================"
-      else
-         echo "ERROR: $HARDENING_INI is empty after write attempt"
-         echo "PHP security hardening FAILED - container is NOT hardened!"
-         return 1
-      fi
+   # Verify the file was actually written
+   if [ -s "$HARDENING_FILE" ]; then
+      echo "============================"
+      echo "=== PHP hardening applied ==="
+      echo "============================"
+   else
+      echo "ERROR: $HARDENING_FILE is empty after write attempt"
+      echo "PHP security hardening FAILED - container is NOT hardened!"
+      return 1
    fi
 }
 

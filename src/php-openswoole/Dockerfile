@@ -100,6 +100,7 @@ RUN chown -R laravel:laravel /etc/supervisor/conf.d \
  && chmod -R 755 /etc/supervisor/conf.d
 
 # Pre-create PHP security hardening file writable by laravel (directory stays root-owned)
+# For non-FPM runtimes, restrictions apply globally (CLI included)
 RUN touch /usr/local/etc/php/conf.d/security-hardening.ini \
  && chown laravel:laravel /usr/local/etc/php/conf.d/security-hardening.ini
 
