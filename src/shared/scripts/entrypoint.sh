@@ -52,41 +52,56 @@ apply_php_hardening() {
          echo "Reloading PHP-FPM to apply hardening..."
          kill -USR2 "$(pgrep -o php-fpm)" || true
       fi
-   else
-      # Octane: no FPM pool separation, apply globally (affects CLI too)
-      HARDENING_FILE="/usr/local/etc/php/conf.d/security-hardening.ini"
-      echo "WARNING: Non-FPM runtime — hardening applies globally (CLI included)."
-      echo "         Horizon/queue workers will also be restricted."
 
-      if ! : > "$HARDENING_FILE" 2>/dev/null; then
-         echo "ERROR: Cannot write to $HARDENING_FILE (permission denied)"
+      # Lock down the file after writing
+      chmod 444 "$HARDENING_FILE"
+
+      # Verify the file was actually written
+      if [ -s "$HARDENING_FILE" ]; then
+         echo "============================"
+         echo "=== PHP hardening applied ==="
+         echo "============================"
+      else
+         echo "ERROR: $HARDENING_FILE is empty after write attempt"
          echo "PHP security hardening FAILED - container is NOT hardened!"
          return 1
       fi
+   else
+      # Octane: build -d flags to inject into the Octane supervisor command only
+      # Horizon/queue workers remain unrestricted (they need proc_open, pcntl_*, etc.)
+      PHP_HARDENING_CLI_ARGS=""
 
       if [ -n "$PHP_DISABLE_FUNCTIONS" ]; then
-         echo "disable_functions = $PHP_DISABLE_FUNCTIONS" >> "$HARDENING_FILE"
-         echo "  disable_functions = $PHP_DISABLE_FUNCTIONS (global)"
+         # Warn if proc_open is disabled on runtimes that need it to start
+         if [ "$PHP_RUNTIME_CONFIG" != "swoole" ]; then
+            if echo "$PHP_DISABLE_FUNCTIONS" | grep -q "proc_open"; then
+               echo "WARNING: proc_open is in PHP_DISABLE_FUNCTIONS but $PHP_RUNTIME_CONFIG needs it to start."
+               echo "         Removing proc_open from the Octane process restrictions."
+               echo "         (proc_open is still disabled for FPM web requests if using FPM runtime)"
+               PHP_DISABLE_FUNCTIONS_OCTANE=$(echo "$PHP_DISABLE_FUNCTIONS" | sed 's/proc_open//;s/,,/,/g;s/^,//;s/,$//')
+            else
+               PHP_DISABLE_FUNCTIONS_OCTANE="$PHP_DISABLE_FUNCTIONS"
+            fi
+         else
+            PHP_DISABLE_FUNCTIONS_OCTANE="$PHP_DISABLE_FUNCTIONS"
+         fi
+         if [ -n "$PHP_DISABLE_FUNCTIONS_OCTANE" ]; then
+            PHP_HARDENING_CLI_ARGS="$PHP_HARDENING_CLI_ARGS -d disable_functions=$PHP_DISABLE_FUNCTIONS_OCTANE"
+            echo "  disable_functions = $PHP_DISABLE_FUNCTIONS_OCTANE (Octane process only)"
+         else
+            echo "  disable_functions = (none — all functions were needed by $PHP_RUNTIME_CONFIG)"
+         fi
       fi
 
       if [ -n "$PHP_OPEN_BASEDIR" ]; then
-         echo "open_basedir = $PHP_OPEN_BASEDIR" >> "$HARDENING_FILE"
-         echo "  open_basedir = $PHP_OPEN_BASEDIR (global)"
+         PHP_HARDENING_CLI_ARGS="$PHP_HARDENING_CLI_ARGS -d open_basedir=$PHP_OPEN_BASEDIR"
+         echo "  open_basedir = $PHP_OPEN_BASEDIR (Octane process only)"
       fi
-   fi
 
-   # Lock down the file after writing
-   chmod 444 "$HARDENING_FILE"
-
-   # Verify the file was actually written
-   if [ -s "$HARDENING_FILE" ]; then
       echo "============================"
-      echo "=== PHP hardening applied ==="
+      echo "=== PHP hardening staged  ==="
       echo "============================"
-   else
-      echo "ERROR: $HARDENING_FILE is empty after write attempt"
-      echo "PHP security hardening FAILED - container is NOT hardened!"
-      return 1
+      echo "  (will be injected into Octane supervisor command)"
    fi
 }
 
@@ -625,6 +640,16 @@ if [ "$PHP_RUNTIME_CONFIG" != "fpm" ]; then
    echo "============================"
 else
    echo "PHP_RUNTIME_CONFIG is set to <fpm>. Skipping Octane start."
+fi
+
+# Inject PHP hardening -d flags into Octane supervisor command (non-FPM only)
+if [ -n "$PHP_HARDENING_CLI_ARGS" ]; then
+   sed -i "s|command=php /app/artisan octane:start|command=php${PHP_HARDENING_CLI_ARGS} /app/artisan octane:start|" /etc/supervisor/conf.d/laravel-worker-compiled.conf
+   echo "PHP hardening injected into Octane command:"
+   grep "command=php" /etc/supervisor/conf.d/laravel-worker-compiled.conf | grep octane || true
+   echo "============================"
+   echo "=== PHP hardening applied ==="
+   echo "============================"
 fi
 
 supervisord -n -c /etc/supervisor/conf.d/laravel-worker-compiled.conf &
