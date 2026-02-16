@@ -68,7 +68,7 @@ COPY ./src/shared/nginx/maintenance /etc/nginx/maintenance
 RUN mkdir -p /var/run/nginx /var/lib/nginx/tmp /etc/nginx/ssl && \
     touch /etc/nginx/php-fpm-handler.conf /etc/nginx/php-restriction.conf && \
     chown -R laravel:laravel /var/lib/nginx /var/run/nginx /var/log/nginx /etc/nginx/ssl \
-        /etc/nginx/php-fpm-handler.conf /etc/nginx/php-restriction.conf
+        /etc/nginx/http.d/default.conf /etc/nginx/php-fpm-handler.conf /etc/nginx/php-restriction.conf
 
 # Configure Supervisor. Add your Supervisor configuration files here.
 COPY ./src/shared/supervisor/ /tmp/supervisor/

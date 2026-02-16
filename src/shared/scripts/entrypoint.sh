@@ -336,40 +336,37 @@ NGINX_CONF
    echo "============================"
 fi
 
-# Starting earlier to allow hosting non-Laravel apps
-if [ "$PHP_RUNTIME_CONFIG" = "fpm" ]; then
-   # Start PHP-FPM if not running
-   if ! pgrep "php-fpm" > /dev/null; then
-      echo "Starting PHP-FPM..."
-      php-fpm &
-   else
-       echo "PHP-FPM is already running."
-   fi
-fi
-
 # Apply Nginx client_max_body_size override if set
 if [ -n "$NGINX_CLIENT_MAX_BODY_SIZE" ]; then
    echo "Setting Nginx client_max_body_size to $NGINX_CLIENT_MAX_BODY_SIZE..."
    sed -i "s|client_max_body_size 128M;|client_max_body_size $NGINX_CLIENT_MAX_BODY_SIZE;|" /etc/nginx/nginx.conf
 fi
 
-# Start Nginx if not running
-if ! pgrep "nginx" > /dev/null; then
-   echo "Starting Nginx..."
-   nginx &
-else
-    echo "Nginx is already running."
+# Apply Nginx document root override if set (useful for non-Laravel apps)
+if [ -n "$NGINX_DOCUMENT_ROOT" ]; then
+   echo "Setting Nginx document root to $NGINX_DOCUMENT_ROOT..."
+   sed -i "s|root /app/public;|root $NGINX_DOCUMENT_ROOT;|g" /etc/nginx/http.d/default.conf
 fi
 
 # Skip Laravel boot
 if [ "$SKIP_LARAVEL_BOOT" = "true" ]; then
    echo "Skipping Laravel boot..."
 
-   # Apply PHP security hardening if configured
+   # Apply PHP configs BEFORE starting FPM (so FPM reads them on startup, no reload needed)
    apply_php_hardening
-
-   # Apply PHP performance tuning if configured
    apply_php_performance
+
+   # Start PHP-FPM after config is written (avoids crash from immediate USR2 reload)
+   if [ "$PHP_RUNTIME_CONFIG" = "fpm" ] && ! pgrep "php-fpm" > /dev/null; then
+      echo "Starting PHP-FPM..."
+      php-fpm &
+   fi
+
+   # Start Nginx
+   if ! pgrep "nginx" > /dev/null; then
+      echo "Starting Nginx..."
+      nginx &
+   fi
 
    # Start cron (generic, not Laravel-specific)
    crond start -f -l 1 &
@@ -391,6 +388,25 @@ if [ "$SKIP_LARAVEL_BOOT" = "true" ]; then
       tail -f /dev/null &
       wait ${!}
    done
+fi
+
+# Starting earlier to allow hosting non-Laravel apps
+if [ "$PHP_RUNTIME_CONFIG" = "fpm" ]; then
+   # Start PHP-FPM if not running
+   if ! pgrep "php-fpm" > /dev/null; then
+      echo "Starting PHP-FPM..."
+      php-fpm &
+   else
+       echo "PHP-FPM is already running."
+   fi
+fi
+
+# Start Nginx if not running
+if ! pgrep "nginx" > /dev/null; then
+   echo "Starting Nginx..."
+   nginx &
+else
+    echo "Nginx is already running."
 fi
 
 cd /app || exit 1
