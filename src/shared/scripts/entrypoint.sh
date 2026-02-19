@@ -110,24 +110,26 @@ apply_msmtp_config() {
       return
    fi
 
-   MSMTP_CONF="/etc/msmtprc"
-   cat > "$MSMTP_CONF" << EOF
-account default
-host ${SMTP_HOST}
-port ${SMTP_PORT:-587}
-from ${SMTP_FROM:-noreply@localhost}
-tls ${SMTP_TLS:-on}
-tls_starttls ${SMTP_STARTTLS:-on}
-tls_certcheck ${SMTP_TLS_CERTCHECK:-on}
-EOF
+   local conf="/etc/msmtprc"
+   printf '%s\n' \
+      "account default" \
+      "host ${SMTP_HOST}" \
+      "port ${SMTP_PORT:-587}" \
+      "from ${SMTP_FROM:-noreply@localhost}" \
+      "tls ${SMTP_TLS:-on}" \
+      "tls_starttls ${SMTP_STARTTLS:-on}" \
+      "tls_certcheck ${SMTP_TLS_CERTCHECK:-on}" \
+      > "$conf"
 
    if [ -n "$SMTP_USER" ]; then
-      echo "auth on" >> "$MSMTP_CONF"
-      echo "user ${SMTP_USER}" >> "$MSMTP_CONF"
-      echo "password ${SMTP_PASSWORD}" >> "$MSMTP_CONF"
+      printf '%s\n' \
+         "auth on" \
+         "user ${SMTP_USER}" \
+         "password ${SMTP_PASSWORD}" \
+         >> "$conf"
    fi
 
-   chmod 600 "$MSMTP_CONF"
+   chmod 600 "$conf"
    echo "SMTP configured (relay via ${SMTP_HOST}:${SMTP_PORT:-587})"
 }
 
