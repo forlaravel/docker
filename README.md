@@ -12,11 +12,11 @@
    <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-white?style=flat-square" alt="MIT license"></a>
 </p>
 
-One container for Laravel. PHP, Nginx, Supervisor, cron, and SSL — mount your project to `/app` and go.
+One container for Laravel. PHP, Nginx, Supervisor, cron, and SSL. Mount your project to `/app` and go.
 
 Pick your PHP runtime: PHP-FPM for standard setups, or FrankenPHP / RoadRunner / OpenSwoole for [Laravel Octane](https://laravel.com/docs/octane). Supports PHP 8.4 and 8.5, Laravel 10 through 13. All images are multi-arch (amd64 + arm64), Alpine-based, and rebuilt weekly.
 
-Same image for dev and production. No custom CLI like Sail — just Docker Compose and env vars.
+Same image for dev and production. No custom CLI like Sail, just Docker Compose and env vars.
 
 Also works for non-Laravel PHP apps (WordPress, etc.) with `SKIP_LARAVEL_BOOT=true`.
 
@@ -198,7 +198,7 @@ environment:
    - PHP_FPM_MAX_REQUESTS=1000
 ```
 
-To estimate `max_children`: divide your container memory by ~50MB per worker. A 2GB container fits about 40, but leave room for Nginx and Supervisor — 30 is a good starting point.
+To estimate `max_children`: divide your container memory by ~50MB per worker. A 2GB container fits about 40, but leave room for Nginx and Supervisor, so 30 is a good starting point.
 
 ### 7. Maintenance mode
 
@@ -332,7 +332,7 @@ services:
 
 HTTPS on port 8443 with a self-signed certificate, generated on first boot. HTTP on port 8000.
 
-Works well with reverse proxies (Traefik, Caddy, etc.) that terminate TLS. Forward to 8443 instead of 8000 and the app sees a real HTTPS connection — no `X-Forwarded-Proto` headers or `TrustProxies` middleware needed.
+Works well with reverse proxies (Traefik, Caddy, etc.) that terminate TLS. Forward to 8443 instead of 8000 and the app sees a real HTTPS connection without needing `X-Forwarded-Proto` headers or `TrustProxies` middleware.
 
 ```yml
 ports:
