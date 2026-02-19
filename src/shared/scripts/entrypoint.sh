@@ -397,11 +397,11 @@ if [ "$SKIP_LARAVEL_BOOT" = "true" ]; then
       nginx &
    fi
 
-   # Start cron (generic, not Laravel-specific)
-   crond start -f -l 1 &
-   echo "============================"
-   echo "=== Cron service started ==="
-   echo "============================"
+   # Start supercronic (works as non-root, unlike busybox crond)
+   supercronic -quiet /etc/supercronic.txt &
+   echo "================================"
+   echo "=== Supercronic cron started ==="
+   echo "================================"
 
    # Run any custom scripts that are mounted to /custom-scripts/after-boot
    if [ -d "/custom-scripts/after-boot" ]; then
@@ -732,13 +732,6 @@ else
    echo "===  Filament optimized  ==="
    echo "============================"
 fi
-
-# Start cron in foreground with minimal logging (level 1)
-crond start -f -l 1 &
-echo "============================"
-echo "=== Cron service started ==="
-echo "============================"
-
 
 # Read laravel .env file
 if [ -f "/app/.env" ]; then

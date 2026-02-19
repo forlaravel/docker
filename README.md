@@ -12,23 +12,15 @@
    <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-white?style=flat-square" alt="MIT license"></a>
 </p>
 
-A Docker image that runs Laravel applications. One container gives you PHP, Nginx, Supervisor, Cron, and SSL. Mount your project to `/app` and it works.
+One container for Laravel. PHP, Nginx, Supervisor, cron, and SSL — mount your project to `/app` and go.
 
-Supports PHP 8.4 and 8.5, Laravel 10 through 13. You pick the PHP runtime: PHP-FPM for standard setups, or FrankenPHP, RoadRunner, OpenSwoole for [Laravel Octane](https://laravel.com/docs/octane). All images are multi-arch (amd64 + arm64), Alpine-based, and rebuilt weekly.
+Pick your PHP runtime: PHP-FPM for standard setups, or FrankenPHP / RoadRunner / OpenSwoole for [Laravel Octane](https://laravel.com/docs/octane). Supports PHP 8.4 and 8.5, Laravel 10 through 13. All images are multi-arch (amd64 + arm64), Alpine-based, and rebuilt weekly.
 
-The same image works for development and production. Unlike Laravel Sail, there's no custom CLI, just Docker Compose and environment variables.
+Same image for dev and production. No custom CLI like Sail — just Docker Compose and env vars.
 
-Fork of [jonaaix/laravel-aio-docker](https://github.com/jonaaix/laravel-aio-docker) with security hardening, OPcache/FPM tuning, HEALTHCHECK, Chromium split, and more config options.
+Also works for non-Laravel PHP apps (WordPress, etc.) with `SKIP_LARAVEL_BOOT=true`.
 
-What you get:
-- PHP-FPM, FrankenPHP, RoadRunner, or OpenSwoole
-- Nginx with HTTPS, WebSocket support, and security headers
-- Supervisor managing Horizon, queue workers, or Octane
-- Xdebug, Vite dev server, Composer/NPM auto-install
-- OPcache and PHP-FPM pool tuning via env vars
-- Security hardening (disable PHP functions, restrict filesystem, lock down Nginx)
-- Chromium variant for PDF generation with Puppeteer/Browsershot
-- Docker HEALTHCHECK
+Fork of [jonaaix/laravel-aio-docker](https://github.com/jonaaix/laravel-aio-docker) with security hardening, OPcache/FPM tuning, HEALTHCHECK, Chromium split, SMTP relay, and more config options.
 
 ---
 
@@ -74,7 +66,7 @@ OpenSwoole doesn't support PHP 8.5 yet.
 
 ### Chromium variant (for PDF generation)
 
-Add `-chromium` to any tag for Puppeteer/Browsershot:
+Add `-chromium` to any tag for Puppeteer/Browsershot support:
 ```
 ghcr.io/forlaravel/docker:latest-php8.4-fpm-chromium
 ```
@@ -92,11 +84,11 @@ When you switch to an Octane image (RoadRunner/FrankenPHP/OpenSwoole) for the fi
 
 ## Configuration
 
-Everything is configured through environment variables. All flags default to `false`.
+Everything is configured through environment variables. Flags default to `false`.
 
 ### 1. Operation mode
 
-The container runs in production mode by default.
+Production mode by default.
 
 | Variable | Default | Description |
 | :--- | :--- | :--- |
@@ -124,19 +116,19 @@ Only active when `ENV_DEV=false` (the default).
 
 ### 4. Background services
 
-Supervisor always runs. These toggle specific workers.
+Supervisor always runs in the normal boot path. These toggle specific workers.
 
 | Variable | Default | Description |
 | :--- | :--- | :--- |
 | `ENABLE_QUEUE_WORKER` | `false` | Start the Laravel queue worker. |
 | `ENABLE_HORIZON_WORKER` | `false` | Start Laravel Horizon. |
 | `SKIP_INSTALL` | `false` | Skip Composer install, NPM install, asset build, and optimization. For pre-built images. |
-| `SKIP_LARAVEL_BOOT` | `false` | Skip all Laravel boot steps. FPM only. Useful for non-Laravel PHP apps. |
+| `SKIP_LARAVEL_BOOT` | `false` | Skip all Laravel boot steps. Starts FPM + Nginx + supercronic only. Useful for non-Laravel PHP apps (WordPress, etc.). |
 | `SKIP_PERMISSION_FIX` | `false` | Skip the `chown`/`chmod` fix on `storage/` and `bootstrap/cache/`. |
 
 ### 5. Security hardening
 
-All disabled by default.
+Disabled by default.
 
 | Variable | Default | Description |
 | :--- | :--- | :--- |
@@ -144,7 +136,7 @@ All disabled by default.
 | `PHP_DISABLE_FUNCTIONS` | _(unset)_ | Comma-separated list of PHP functions to disable (e.g. `exec,shell_exec,system,passthru,proc_open,popen`). |
 | `PHP_OPEN_BASEDIR` | _(unset)_ | Restrict PHP filesystem access (e.g. `/app:/tmp`). |
 
-How these get applied depends on the runtime:
+How these apply depends on the runtime:
 
 | Runtime | Mechanism | Web requests | CLI (Horizon, artisan, queue) |
 | :--- | :--- | :--- | :--- |
@@ -153,13 +145,13 @@ How these get applied depends on the runtime:
 
 Horizon and queue workers keep full access to `proc_open`, `pcntl_fork`, etc. Only the web-facing process is restricted.
 
-For RoadRunner and FrankenPHP, `proc_open` is automatically removed from the disable list since they need it to start. Swoole doesn't need it.
+For RoadRunner and FrankenPHP, `proc_open` is automatically removed from the disable list since they need it to start. Swoole doesn't.
 
 `open_basedir` disables PHP's realpath cache, which can hurt performance. If you use it, set `PHP_OPCACHE_VALIDATE_TIMESTAMPS=0` (see below).
 
 ### 6. Performance tuning
 
-These let you tune PHP, OPcache, PHP-FPM, and Nginx settings at runtime.
+Tune PHP, OPcache, PHP-FPM, and Nginx at runtime.
 
 #### PHP runtime
 
@@ -169,14 +161,14 @@ These let you tune PHP, OPcache, PHP-FPM, and Nginx settings at runtime.
 | `PHP_MAX_EXECUTION_TIME` | `max_execution_time` | `120` | Max seconds per request. Use queue jobs for long tasks. |
 | `PHP_POST_MAX_SIZE` | `post_max_size` | `128M` | Max POST body size. |
 | `PHP_UPLOAD_MAX_FILESIZE` | `upload_max_filesize` | `128M` | Max uploaded file size. |
-| `NGINX_CLIENT_MAX_BODY_SIZE` | `client_max_body_size` | `128M` | Nginx request body limit. Set this alongside `PHP_POST_MAX_SIZE`. |
+| `NGINX_CLIENT_MAX_BODY_SIZE` | `client_max_body_size` | `128M` | Nginx request body limit. Set alongside `PHP_POST_MAX_SIZE`. |
 | `NGINX_DOCUMENT_ROOT` | `root` | `/app/public` | Nginx document root. Change for non-Laravel apps (e.g. `/app/dist`). |
 
 #### OPcache
 
 | Variable | Maps to | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `PHP_OPCACHE_VALIDATE_TIMESTAMPS` | `opcache.validate_timestamps` | `1` | Set to `0` in production to stop checking if files changed. Biggest single performance improvement. |
+| `PHP_OPCACHE_VALIDATE_TIMESTAMPS` | `opcache.validate_timestamps` | `1` | Set to `0` in production to stop checking if files changed. Single biggest performance win. |
 | `PHP_OPCACHE_REVALIDATE_FREQ` | `opcache.revalidate_freq` | `2` | Seconds between file checks. Irrelevant when `validate_timestamps=0`. |
 | `PHP_OPCACHE_MEMORY` | `opcache.memory_consumption` | `1024` | OPcache memory in MB. |
 | `PHP_OPCACHE_MAX_FILES` | `opcache.max_accelerated_files` | `20000` | Max cached scripts. |
@@ -206,22 +198,22 @@ environment:
    - PHP_FPM_MAX_REQUESTS=1000
 ```
 
-To estimate `max_children`: divide your container memory by ~50MB per worker. A 2GB container can handle about 40 workers, but leave room for Nginx and Supervisor, so 30 is a reasonable starting point.
+To estimate `max_children`: divide your container memory by ~50MB per worker. A 2GB container fits about 40, but leave room for Nginx and Supervisor — 30 is a good starting point.
 
 ### 7. Maintenance mode
 
-Controls Laravel's maintenance mode during boot, useful during deployments.
+Laravel's maintenance mode during boot, useful during deployments.
 
 | Variable | Default | Description |
 | :--- | :--- | :--- |
-| `ENABLE_MAINTENANCE_BOOT` | `false` | Enable maintenance mode during boot. Skipped if `vendor/` doesn't exist. |
+| `ENABLE_MAINTENANCE_BOOT` | `false` | Enable maintenance mode during boot. Skipped if `vendor/` doesn't exist yet. |
 | `MAINTENANCE_SECRET` | _(auto-generated)_ | Secret for bypassing maintenance mode. |
 | `MAINTENANCE_RENDER` | `errors::503` | View to render during maintenance. |
 | `MAINTENANCE_RETRY` | `10` | Retry-After header in seconds. |
 
 ### 8. SMTP relay
 
-PHP's `mail()` needs an MTA to deliver messages. The image includes [msmtp](https://marlam.de/msmtp/), a lightweight sendmail replacement that relays through an external SMTP server. Set `SMTP_HOST` to enable it. Without it, `mail()` fails gracefully with a logged error.
+PHP's `mail()` needs an MTA to deliver messages. The image includes [msmtp](https://marlam.de/msmtp/), a lightweight sendmail replacement that relays through an external SMTP server. Set `SMTP_HOST` to enable it. If unconfigured, `mail()` fails gracefully with a logged error.
 
 Laravel apps typically use Symfony Mailer (configured via `MAIL_*` env vars) and don't need this. It's mainly useful for non-Laravel PHP apps running with `SKIP_LARAVEL_BOOT=true`.
 
@@ -314,13 +306,33 @@ services:
 
 Mounting `/app:ro` with only `storage/logs`, `storage/framework`, and `bootstrap/cache` writable means a compromised app can't modify its own code.
 
+### Non-Laravel PHP app (WordPress, etc.)
+
+```yaml
+services:
+   app:
+      image: ghcr.io/forlaravel/docker:latest-php8.4-fpm
+      volumes:
+         - ./wordpress:/app
+         - ./docker/crontab:/etc/supercronic.txt:ro
+      environment:
+         - SKIP_LARAVEL_BOOT=true
+         - NGINX_DOCUMENT_ROOT=/app
+         - SMTP_HOST=mailpit
+         - SMTP_PORT=1025
+         - SMTP_TLS=off
+         - SMTP_STARTTLS=off
+      ports:
+         - "8000:8000"
+```
+
 ---
 
 ## SSL / HTTPS
 
-All variants serve HTTPS on port 8443 using a self-signed certificate generated on first boot. HTTP stays on port 8000.
+HTTPS on port 8443 with a self-signed certificate, generated on first boot. HTTP on port 8000.
 
-This works well with reverse proxies (Traefik, Caddy, etc.) that terminate TLS. Forward to 8443 instead of 8000 and the app sees a real HTTPS connection without `X-Forwarded-Proto` headers or `TrustProxies` middleware.
+Works well with reverse proxies (Traefik, Caddy, etc.) that terminate TLS. Forward to 8443 instead of 8000 and the app sees a real HTTPS connection — no `X-Forwarded-Proto` headers or `TrustProxies` middleware needed.
 
 ```yml
 ports:
@@ -328,7 +340,7 @@ ports:
    - "8443:8443"  # HTTPS (self-signed)
 ```
 
-The cert lives at `/etc/nginx/ssl/selfsigned.{crt,key}`. To use your own:
+The cert is at `/etc/nginx/ssl/selfsigned.{crt,key}`. To use your own:
 
 ```yml
 volumes:
@@ -336,11 +348,11 @@ volumes:
    - ./my-cert.key:/etc/nginx/ssl/selfsigned.key:ro
 ```
 
-If a cert already exists there, auto-generation is skipped.
+If a cert already exists, auto-generation is skipped.
 
 ## Docker HEALTHCHECK
 
-All variants include a HEALTHCHECK that polls `http://localhost:8000/basic_status` every 30s (start period: 120s for the boot sequence). The endpoint is localhost-only, not reachable from outside.
+All images poll `http://localhost:8000/basic_status` every 30s (start period: 120s for the boot sequence). The endpoint is localhost-only.
 
 ```bash
 docker inspect --format='{{.State.Health.Status}}' <container>
@@ -348,7 +360,7 @@ docker inspect --format='{{.State.Health.Status}}' <container>
 
 ## Nginx access logs
 
-Access logs go to stdout in `combined` format, so they show up in `docker logs`. Requests for `/favicon.ico` and `/robots.txt` are suppressed.
+Access logs go to stdout (`combined` format), so they show up in `docker logs`. Requests for `/favicon.ico` and `/robots.txt` are suppressed.
 
 ## File permissions
 
@@ -359,7 +371,7 @@ To fix permissions:
 docker compose exec --user root php sh -c "/scripts/fix-laravel-project-permissions.sh"
 ```
 
-On macOS (where the default group is `staff`):
+On macOS (default group is `staff`):
 ```bash
 sudo chown -R $(whoami):staff /path/to/app
 ```
@@ -373,7 +385,7 @@ sudo chown -R $(whoami):staff /path/to/app
 Set `DEV_ENABLE_XDEBUG=true` in your docker-compose.yml. Xdebug listens on port 9003.
 
 <details>
-<summary>PHPStorm setup (click to expand)</summary>
+<summary>PHPStorm setup</summary>
 
 1. `Settings` -> `PHP` -> `Debug`
 2. Disable `Break at first line in PHP scripts`
@@ -392,7 +404,7 @@ Set `DEV_ENABLE_XDEBUG=true` in your docker-compose.yml. Xdebug listens on port 
 
 ### Chromium for PDF generation
 
-Chromium isn't in the default images (it adds ~200MB). Use the `-chromium` variant instead:
+Chromium isn't in the default images (adds ~200MB). Use the `-chromium` variant:
 
 ```yaml
 image: ghcr.io/forlaravel/docker:latest-php8.4-fpm-chromium
@@ -403,7 +415,7 @@ When building locally:
 ./build-image.sh 8.4 fpm --chromium
 ```
 
-Or with the build arg directly:
+Or with the build arg:
 ```bash
 docker buildx build --build-arg INPUT_PHP=8.4 --build-arg INSTALL_CHROMIUM=true \
    --file ./src/php-fpm/Dockerfile --load .
@@ -433,6 +445,29 @@ class PDF {
 }
 ```
 
+### Cron jobs (supercronic)
+
+All variants use [supercronic](https://github.com/aptible/supercronic) for cron. It runs as non-root and logs to stdout (visible in `docker logs`).
+
+In the normal boot path, supercronic starts via Supervisor. With `SKIP_LARAVEL_BOOT=true`, it starts directly as a background process.
+
+The default crontab at `/etc/supercronic.txt` is empty (comments only). Mount your own to add jobs:
+
+```yml
+services:
+   app:
+      volumes:
+         - ./docker/crontab:/etc/supercronic.txt:ro
+```
+
+```
+# docker/crontab
+* * * * * php /app/artisan schedule:run
+0 3 * * * /scripts/fix-laravel-project-permissions.sh
+```
+
+Standard cron syntax. Supercronic also supports second-level precision (`*/30 * * * * *` for every 30 seconds).
+
 ### Laravel Boost MCP
 
 ##### 1. Create a bridge script `mcp-boost.sh` in your project root
@@ -459,6 +494,18 @@ Make it executable: `chmod +x mcp-boost.sh`
 For JetBrains AI Assistant:
 ```
 Settings -> Tools -> AI Assistant -> MCP -> Edit Laravel Boost -> Working Directory
+```
+
+### Custom boot scripts
+
+Mount script directories to hook into the boot process. Scripts run in alphabetical order.
+
+```yml
+services:
+   php:
+      volumes:
+         - ./docker/before-boot:/custom-scripts/before-boot
+         - ./docker/after-boot:/custom-scripts/after-boot
 ```
 
 ### Redis
@@ -507,7 +554,7 @@ services:
 Then add a location block after `/basic_status`:
 
 <details>
-<summary>Nginx config for JS app (click to expand)</summary>
+<summary>Nginx config for JS app</summary>
 
 ```nginx
 ####################################
@@ -541,23 +588,11 @@ location ^~ /app/ {
 ```
 </details>
 
-### Custom boot scripts
-
-Mount script directories to hook into the boot process. Scripts run in alphabetical order.
-
-```yml
-services:
-   php:
-      volumes:
-         - ./docker/before-boot:/custom-scripts/before-boot
-         - ./docker/after-boot:/custom-scripts/after-boot
-```
-
 ### Debugging Nginx
 
-Add this location block to dump all Nginx variables:
+Dump all Nginx variables:
 <details>
-<summary>Debug location block (click to expand)</summary>
+<summary>Debug location block</summary>
 
 ```nginx
  location /debug_status {
