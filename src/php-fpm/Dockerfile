@@ -32,7 +32,8 @@ RUN apk update && apk add --no-cache \
     ca-certificates \
     tzdata \
     jq \
-    openssl
+    openssl \
+    msmtp
 
 # Install puppeteer PDF tools dependencies (optional, controlled by INSTALL_CHROMIUM build arg)
 RUN if [ "$INSTALL_CHROMIUM" = "true" ]; then \
@@ -107,9 +108,11 @@ RUN chown -R laravel:laravel /etc/supervisor/conf.d \
 RUN touch /usr/local/etc/php-fpm.d/zzz-security-hardening.conf \
         /usr/local/etc/php-fpm.d/zzz-performance.conf \
         /usr/local/etc/php/conf.d/zzz-performance.ini \
+        /etc/msmtprc \
  && chown laravel:laravel /usr/local/etc/php-fpm.d/zzz-security-hardening.conf \
         /usr/local/etc/php-fpm.d/zzz-performance.conf \
-        /usr/local/etc/php/conf.d/zzz-performance.ini
+        /usr/local/etc/php/conf.d/zzz-performance.ini \
+        /etc/msmtprc
 
 # Set the user to run the container
 USER laravel

@@ -219,6 +219,23 @@ Controls Laravel's maintenance mode during boot, useful during deployments.
 | `MAINTENANCE_RENDER` | `errors::503` | View to render during maintenance. |
 | `MAINTENANCE_RETRY` | `10` | Retry-After header in seconds. |
 
+### 8. SMTP relay
+
+PHP's `mail()` needs an MTA to deliver messages. The image includes [msmtp](https://marlam.de/msmtp/), a lightweight sendmail replacement that relays through an external SMTP server. Set `SMTP_HOST` to enable it. Without it, `mail()` fails gracefully with a logged error.
+
+Laravel apps typically use Symfony Mailer (configured via `MAIL_*` env vars) and don't need this. It's mainly useful for non-Laravel PHP apps running with `SKIP_LARAVEL_BOOT=true`.
+
+| Variable | Default | Description |
+| :--- | :--- | :--- |
+| `SMTP_HOST` | _(unset)_ | SMTP server hostname. Enables msmtp when set. |
+| `SMTP_PORT` | `587` | SMTP server port. |
+| `SMTP_FROM` | `noreply@localhost` | Default sender address. |
+| `SMTP_USER` | _(unset)_ | SMTP username. Enables authentication when set. |
+| `SMTP_PASSWORD` | _(unset)_ | SMTP password. |
+| `SMTP_TLS` | `on` | Enable TLS. |
+| `SMTP_STARTTLS` | `on` | Use STARTTLS. Set to `off` for implicit TLS (port 465). |
+| `SMTP_TLS_CERTCHECK` | `on` | Verify server certificate. |
+
 ---
 
 ## Docker Compose examples

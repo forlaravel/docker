@@ -105,6 +105,32 @@ apply_php_hardening() {
    fi
 }
 
+apply_msmtp_config() {
+   if [ -z "$SMTP_HOST" ]; then
+      return
+   fi
+
+   MSMTP_CONF="/etc/msmtprc"
+   cat > "$MSMTP_CONF" << EOF
+account default
+host ${SMTP_HOST}
+port ${SMTP_PORT:-587}
+from ${SMTP_FROM:-noreply@localhost}
+tls ${SMTP_TLS:-on}
+tls_starttls ${SMTP_STARTTLS:-on}
+tls_certcheck ${SMTP_TLS_CERTCHECK:-on}
+EOF
+
+   if [ -n "$SMTP_USER" ]; then
+      echo "auth on" >> "$MSMTP_CONF"
+      echo "user ${SMTP_USER}" >> "$MSMTP_CONF"
+      echo "password ${SMTP_PASSWORD}" >> "$MSMTP_CONF"
+   fi
+
+   chmod 600 "$MSMTP_CONF"
+   echo "SMTP configured (relay via ${SMTP_HOST}:${SMTP_PORT:-587})"
+}
+
 apply_php_performance() {
    local has_opcache=false
    local has_fpm=false
@@ -355,6 +381,7 @@ if [ "$SKIP_LARAVEL_BOOT" = "true" ]; then
    # Apply PHP configs BEFORE starting FPM (so FPM reads them on startup, no reload needed)
    apply_php_hardening
    apply_php_performance
+   apply_msmtp_config
 
    # Start PHP-FPM after config is written (avoids crash from immediate USR2 reload)
    if [ "$PHP_RUNTIME_CONFIG" = "fpm" ] && ! pgrep "php-fpm" > /dev/null; then
@@ -664,6 +691,9 @@ apply_php_hardening
 
 # Apply PHP performance tuning if configured
 apply_php_performance
+
+# Apply msmtp SMTP relay config if configured
+apply_msmtp_config
 
 if [ "$SKIP_INSTALL" = "true" ]; then
    echo "Skipping optimization (SKIP_INSTALL=true)..."

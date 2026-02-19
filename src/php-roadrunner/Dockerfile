@@ -35,7 +35,8 @@ RUN apk update && apk add --no-cache \
     ca-certificates \
     tzdata \
     jq \
-    openssl
+    openssl \
+    msmtp
 
 # Install puppeteer PDF tools dependencies (optional, controlled by INSTALL_CHROMIUM build arg)
 RUN if [ "$INSTALL_CHROMIUM" = "true" ]; then \
@@ -102,9 +103,11 @@ RUN find /scripts -type f -name "*.sh" -exec chmod +x {} \;
 RUN chown -R laravel:laravel /etc/supervisor/conf.d \
  && chmod -R 755 /etc/supervisor/conf.d
 
-# Pre-create runtime config file writable by laravel (directory stays root-owned)
+# Pre-create runtime config files writable by laravel (directories stay root-owned)
 RUN touch /usr/local/etc/php/conf.d/zzz-performance.ini \
- && chown laravel:laravel /usr/local/etc/php/conf.d/zzz-performance.ini
+        /etc/msmtprc \
+ && chown laravel:laravel /usr/local/etc/php/conf.d/zzz-performance.ini \
+        /etc/msmtprc
 
 # Set the user to run the container
 USER laravel
