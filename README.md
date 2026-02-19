@@ -170,6 +170,7 @@ These let you tune PHP, OPcache, PHP-FPM, and Nginx settings at runtime.
 | `PHP_POST_MAX_SIZE` | `post_max_size` | `128M` | Max POST body size. |
 | `PHP_UPLOAD_MAX_FILESIZE` | `upload_max_filesize` | `128M` | Max uploaded file size. |
 | `NGINX_CLIENT_MAX_BODY_SIZE` | `client_max_body_size` | `128M` | Nginx request body limit. Set this alongside `PHP_POST_MAX_SIZE`. |
+| `NGINX_DOCUMENT_ROOT` | `root` | `/app/public` | Nginx document root. Change for non-Laravel apps (e.g. `/app/dist`). |
 
 #### OPcache
 
