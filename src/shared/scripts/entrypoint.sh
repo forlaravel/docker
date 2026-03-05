@@ -47,12 +47,6 @@ apply_php_hardening() {
          echo "  open_basedir = $PHP_OPEN_BASEDIR (FPM only)"
       fi
 
-      # Reload PHP-FPM to pick up new settings
-      if pgrep "php-fpm" > /dev/null; then
-         echo "Reloading PHP-FPM to apply hardening..."
-         kill -USR2 "$(pgrep -o php-fpm)" || true
-      fi
-
       # Lock down the file after writing
       chmod 444 "$HARDENING_FILE"
 
@@ -244,12 +238,6 @@ apply_php_performance() {
          chmod 444 "$FPM_PERF"
          echo "FPM pool tuning applied:"
          sed 's/^/  /' "$FPM_PERF"
-
-         # Reload FPM to pick up new settings
-         if pgrep "php-fpm" > /dev/null; then
-            echo "Reloading PHP-FPM to apply performance tuning..."
-            kill -USR2 "$(pgrep -o php-fpm)" || true
-         fi
       fi
       has_fpm=true
    fi
@@ -385,23 +373,30 @@ if [ "$SKIP_LARAVEL_BOOT" = "true" ]; then
    apply_php_performance
    apply_msmtp_config
 
-   # Start PHP-FPM after config is written (avoids crash from immediate USR2 reload)
-   if [ "$PHP_RUNTIME_CONFIG" = "fpm" ] && ! pgrep "php-fpm" > /dev/null; then
-      echo "Starting PHP-FPM..."
-      php-fpm &
-   fi
-
-   # Start Nginx
+   # Start Nginx early so it can serve the maintenance page during boot
    if ! pgrep "nginx" > /dev/null; then
       echo "Starting Nginx..."
       nginx &
    fi
 
-   # Start supercronic (works as non-root, unlike busybox crond)
-   supercronic -quiet /etc/supercronic.txt &
-   echo "================================"
-   echo "=== Supercronic cron started ==="
-   echo "================================"
+   # Build Supervisor config for supervised processes
+   cat /etc/supervisor/conf.d/supervisor-header.conf > /etc/supervisor/conf.d/laravel-worker-compiled.conf
+
+   if [ "$PHP_RUNTIME_CONFIG" = "fpm" ]; then
+      echo "Adding PHP-FPM supervisor config..."
+      echo "" >> /etc/supervisor/conf.d/laravel-worker-compiled.conf
+      cat /etc/supervisor/conf.d/php-fpm-worker.conf >> /etc/supervisor/conf.d/laravel-worker-compiled.conf
+   fi
+
+   echo "Adding supercronic supervisor config..."
+   echo "" >> /etc/supervisor/conf.d/laravel-worker-compiled.conf
+   cat /etc/supervisor/conf.d/supercronic-worker.conf >> /etc/supervisor/conf.d/laravel-worker-compiled.conf
+
+   supervisord -n -c /etc/supervisor/conf.d/laravel-worker-compiled.conf &
+
+   echo "============================"
+   echo "===  Supervisor started  ==="
+   echo "============================"
 
    # Run any custom scripts that are mounted to /custom-scripts/after-boot
    if [ -d "/custom-scripts/after-boot" ]; then
@@ -419,18 +414,7 @@ if [ "$SKIP_LARAVEL_BOOT" = "true" ]; then
    done
 fi
 
-# Starting earlier to allow hosting non-Laravel apps
-if [ "$PHP_RUNTIME_CONFIG" = "fpm" ]; then
-   # Start PHP-FPM if not running
-   if ! pgrep "php-fpm" > /dev/null; then
-      echo "Starting PHP-FPM..."
-      php-fpm &
-   else
-       echo "PHP-FPM is already running."
-   fi
-fi
-
-# Start Nginx if not running
+# Start Nginx early so it can serve the maintenance page during boot
 if ! pgrep "nginx" > /dev/null; then
    echo "Starting Nginx..."
    nginx &
@@ -754,6 +738,16 @@ if [ -f "/app/.env" ]; then
 fi
 
 cat /etc/supervisor/conf.d/supervisor-header.conf > /etc/supervisor/conf.d/laravel-worker-compiled.conf
+
+if [ "$PHP_RUNTIME_CONFIG" = "fpm" ]; then
+   echo "Adding PHP-FPM supervisor config..."
+   echo "" >> /etc/supervisor/conf.d/laravel-worker-compiled.conf
+   cat /etc/supervisor/conf.d/php-fpm-worker.conf >> /etc/supervisor/conf.d/laravel-worker-compiled.conf
+
+   echo "============================"
+   echo "===    PHP-FPM added     ==="
+   echo "============================"
+fi
 
 echo "Adding supercronic supervisor config..."
 echo "" >> /etc/supervisor/conf.d/laravel-worker-compiled.conf
