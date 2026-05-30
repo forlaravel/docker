@@ -1,5 +1,10 @@
 # Changelog
 
+## Version 1.3.4 (2026-04-23)
+
+### Bug Fixes
+- Vite dev server (`DEV_NPM_RUN_DEV=true`) now starts correctly when `SKIP_INSTALL=true`. Previously the `npm run dev` block was inside the `SKIP_INSTALL` guard, so setting both flags skipped the dev server silently.
+
 ## Version 1.3.3 (2026-02-04)
 
 ### Registry

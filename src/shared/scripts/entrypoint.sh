@@ -626,19 +626,22 @@ else
    echo "=========================="
 
 
-   echo "Building NPM..."
-   if [ "$ENV_DEV" = "true" ]; then
-      if [ "$DEV_NPM_RUN_DEV" = "true" ]; then
-         npm run dev -- --host &
-      else
-         echo "Skipping DEV-Server..."
-      fi
-   else
+   if [ "$ENV_DEV" != "true" ]; then
+      echo "Building NPM..."
       npm run build
+      echo "=========================="
+      echo "===     NPM built      ==="
+      echo "=========================="
    fi
-   echo "=========================="
-   echo "===     NPM built      ==="
-   echo "=========================="
+fi
+
+if [ "$ENV_DEV" = "true" ] && [ "$DEV_NPM_RUN_DEV" = "true" ]; then
+   if [ -d "node_modules" ]; then
+      echo "Starting Vite dev server..."
+      npm run dev -- --host &
+   else
+      echo "DEV_NPM_RUN_DEV=true but node_modules missing — run npm install first."
+   fi
 fi
 
 
