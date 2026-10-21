@@ -7,6 +7,13 @@ FROM $IMAGENAME
 ARG TARGETARCH
 ARG INSTALL_CHROMIUM=false
 
+# PHP2Shell (CVE-2026-109618/-109619): refuse to build on an unpatched PHP base image
+RUN php -r '$min = ["8.2" => "8.2.35", "8.3" => "8.3.36", "8.4" => "8.4.27", "8.5" => "8.5.12"]; \
+    $minor = PHP_MAJOR_VERSION . "." . PHP_MINOR_VERSION; \
+    if (version_compare($minor, "8.2", "<") || (isset($min[$minor]) && version_compare(PHP_VERSION, $min[$minor], "<"))) { \
+        fwrite(STDERR, "PHP " . PHP_VERSION . " is vulnerable to PHP2Shell (CVE-2026-109618/-109619), use a patched base image\n"); exit(1); \
+    }'
+
 COPY --from=roadrunner /usr/bin/rr /usr/local/bin/rr
 
 ############################################################
