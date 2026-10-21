@@ -1,0 +1,131 @@
+name: Security rebuild (own PHP base)
+
+# Builds the official docker-library PHP base image ourselves with a newer PHP patch
+# release, then builds our variant on top of it. Use this when php.net has shipped a
+# security release but the official php:X.Y-*-alpine images on Docker Hub lag behind.
+# Once the official image catches up, go back to the regular "Build and Push" workflow.
+
+on:
+    workflow_dispatch:
+        inputs:
+            php_version:
+                description: 'PHP minor version (e.g., 8.4)'
+                required: true
+                default: '8.4'
+            php_patch:
+                description: 'Full PHP version to build (e.g., 8.4.27)'
+                required: true
+                default: '8.4.27'
+            php_sha256:
+                description: 'SHA256 of php-<version>.tar.xz from php.net'
+                required: true
+                default: 'dcf93923b0e38e0d5252b25b796520b5a47761a08b3488b6d0b5d1115764d3f0'
+            alpine:
+                description: 'docker-library alpine directory (e.g., alpine3.24)'
+                required: true
+                default: 'alpine3.24'
+            version_tag:
+                description: 'Version tag for the images (e.g., 1.3)'
+                required: true
+                default: '1.3'
+
+    push:
+        branches:
+            - 'security/php-*'
+
+env:
+    PHP_MINOR: ${{ inputs.php_version || '8.4' }}
+    PHP_PATCH: ${{ inputs.php_patch || '8.4.27' }}
+    PHP_SHA256: ${{ inputs.php_sha256 || 'dcf93923b0e38e0d5252b25b796520b5a47761a08b3488b6d0b5d1115764d3f0' }}
+    ALPINE_DIR: ${{ inputs.alpine || 'alpine3.24' }}
+    VERSION_TAG: ${{ inputs.version_tag || '1.3' }}
+
+permissions:
+    packages: write
+    contents: read
+
+jobs:
+    build:
+        name: Build fpm (${{ matrix.arch }})
+        runs-on: ${{ matrix.runner }}
+        strategy:
+            fail-fast: true
+            matrix:
+                include:
+                    -   arch: amd64
+                        runner: ubuntu-latest
+                    -   arch: arm64
+                        runner: ubuntu-24.04-arm
+        steps:
+            -   name: Validate inputs
+                run: |
+                    [[ "${PHP_MINOR}" =~ ^[0-9]+\.[0-9]+$ ]] || { echo "bad php_version"; exit 1; }
+                    [[ "${PHP_PATCH}" =~ ^${PHP_MINOR}\.[0-9]+$ ]] || { echo "bad php_patch"; exit 1; }
+                    [[ "${PHP_SHA256}" =~ ^[0-9a-f]{64}$ ]] || { echo "bad php_sha256"; exit 1; }
+                    [[ "${ALPINE_DIR}" =~ ^alpine3\.[0-9]+$ ]] || { echo "bad alpine"; exit 1; }
+                    [[ "${VERSION_TAG}" =~ ^[0-9]+\.[0-9]+$ ]] || { echo "bad version_tag"; exit 1; }
+
+            -   name: Checkout code
+                uses: actions/checkout@v4
+
+            -   name: Checkout docker-library/php
+                uses: actions/checkout@v4
+                with:
+                    repository: docker-library/php
+                    path: docker-library-php
+
+            -   name: Build PHP base image
+                run: |
+                    DIR="docker-library-php/${PHP_MINOR}/${ALPINE_DIR}/fpm"
+                    V="${PHP_PATCH}"
+                    sed -i \
+                        -e "s|^ENV PHP_VERSION .*|ENV PHP_VERSION ${V}|" \
+                        -e "s|^ENV PHP_URL=.*|ENV PHP_URL=\"https://www.php.net/distributions/php-${V}.tar.xz\" PHP_ASC_URL=\"https://www.php.net/distributions/php-${V}.tar.xz.asc\"|" \
+                        -e "s|^ENV PHP_SHA256=.*|ENV PHP_SHA256=\"${PHP_SHA256}\"|" \
+                        "$DIR/Dockerfile"
+                    grep -E '^ENV PHP_(VERSION|URL|SHA256)' "$DIR/Dockerfile"
+                    docker build -t local/php-base:${V} "$DIR"
+                    docker run --rm local/php-base:${V} php -v | head -1 | grep -F "PHP ${V} "
+
+            -   name: Build fpm image
+                run: |
+                    docker build \
+                        -f ./src/php-fpm/Dockerfile \
+                        --build-arg IMAGENAME=local/php-base:${PHP_PATCH} \
+                        --build-arg INSTALL_CHROMIUM=false \
+                        -t ghcr.io/forlaravel/docker:${VERSION_TAG}-php${PHP_MINOR}-fpm-${{ matrix.arch }} \
+                        .
+                    docker run --rm --entrypoint php ghcr.io/forlaravel/docker:${VERSION_TAG}-php${PHP_MINOR}-fpm-${{ matrix.arch }} -v | head -1 | grep -F "PHP ${PHP_PATCH} "
+
+            -   name: Log in to GitHub Container Registry
+                uses: docker/login-action@v3
+                with:
+                    registry: ghcr.io
+                    username: ${{ github.actor }}
+                    password: ${{ secrets.GITHUB_TOKEN }}
+
+            -   name: Push
+                run: docker push ghcr.io/forlaravel/docker:${VERSION_TAG}-php${PHP_MINOR}-fpm-${{ matrix.arch }}
+
+    create-manifest:
+        name: Create manifest
+        runs-on: ubuntu-latest
+        needs: build
+        steps:
+            -   name: Log in to GitHub Container Registry
+                uses: docker/login-action@v3
+                with:
+                    registry: ghcr.io
+                    username: ${{ github.actor }}
+                    password: ${{ secrets.GITHUB_TOKEN }}
+
+            -   name: Create and push multi-arch manifests
+                run: |
+                    IMAGE_BASE="ghcr.io/forlaravel/docker"
+                    TAG_BASE="${VERSION_TAG}-php${PHP_MINOR}-fpm"
+                    for TAG in "${TAG_BASE}" "latest-php${PHP_MINOR}-fpm"; do
+                        docker manifest create ${IMAGE_BASE}:${TAG} \
+                            ${IMAGE_BASE}:${TAG_BASE}-amd64 \
+                            ${IMAGE_BASE}:${TAG_BASE}-arm64
+                        docker manifest push ${IMAGE_BASE}:${TAG}
+                    done
